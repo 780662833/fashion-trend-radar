@@ -79,6 +79,19 @@ def ensure_source_tables(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_source_observations_market_period
             ON source_observations(market_code, period_end);
+        CREATE TABLE IF NOT EXISTS product_evidence (
+            evidence_id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+            evidence_type TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            captured_at TEXT NOT NULL,
+            is_primary INTEGER NOT NULL DEFAULT 0,
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(product_id, evidence_type, source_url)
+        );
+        CREATE INDEX IF NOT EXISTS idx_product_evidence_product
+            ON product_evidence(product_id, is_primary);
         """
     )
     observation_columns = {

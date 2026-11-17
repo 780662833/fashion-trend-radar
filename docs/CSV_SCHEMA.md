@@ -83,3 +83,12 @@ Optional: `local_price,market_search_terms,market_status,source_url,observed_at`
 Import with `python scripts/import_product_markets.py --db data/registry.sqlite --file path\\product_market.csv`. The import is an idempotent upsert by product_id and market_code.
 
 Generate product/market/source query tasks with `python scripts/generate_research_plan.py --db data/registry.sqlite --out configs/manual_research/research_query_plan.csv`. Query tasks are not observations. Google Trends terms are grouped in batches of at most five; never compare indices across different comparison_group values.
+
+
+## product_evidence.csv
+
+必需：`product_id,evidence_type,source_url`。
+
+可选：`captured_at,is_primary,notes`。
+
+`evidence_type` 可选：`official_product_page`、`official_release_announcement`、`authorized_retailer`、`marketplace_listing`、`editorial_reference`。URL 必须为 HTTPS；`.invalid` 占位地址会被拒绝。每个产品至少应有一个人工核验的身份来源，最好将品牌官方页面设为 `is_primary=true`。导入不会自动认证网站或授权零售商身份。

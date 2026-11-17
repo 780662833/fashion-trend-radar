@@ -76,3 +76,19 @@ Not yet verified:
 - No real product catalogue or product-market CSV has been supplied to this build environment.
 - Query generation has not collected platform observations and does not establish demand.
 - Real market samples still need to be manually captured and imported before opportunity scoring can be interpreted.
+
+
+## Product catalogue provenance and QA phase
+
+Implemented on branch `feat/product-catalog-evidence-audit`:
+
+- Additive `product_evidence` table for source references supporting model identity, style code and release details.
+- CSV evidence importer validates product IDs, evidence types, HTTPS URLs and rejects placeholder domains.
+- Read-only catalogue audit checks duplicate canonical identities, brand/style-code collisions, ambiguous aliases, identity confidence, taxonomy and audience values, primary evidence and active market mapping.
+- JSON report and distinct exit codes make catalogue blockers machine-checkable.
+- Tests cover evidence import, clean catalogue readiness, ambiguous aliases, missing evidence and placeholder URL rejection.
+
+Not yet verified:
+
+- No real candidate product catalogue or evidence CSV has been supplied to this build environment.
+- A passing catalogue audit proves recorded provenance and internal consistency only; source authenticity still requires human review.
