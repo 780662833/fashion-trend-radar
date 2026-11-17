@@ -143,3 +143,18 @@ fashion-radar --db PATH warehouse-refresh --out DIR
 ## 项目状态
 
 `v0.1.0` 是可运行的基础研究流水线：数据库、CSV 导入、规则评分、报告导出、Parquet/DuckDB 分析仓库和只读 Streamlit 页面。它还不是完整的多平台自动采集系统。下一阶段应先验证真实数据导入与商品身份匹配，再增加有明确授权的数据源连接器。
+
+
+## Data source collection and validation
+
+YouTube public video references are collected only through the official YouTube Data API. The collector stores individual references separately from the product-scoring tables; it does not aggregate YouTube API metrics into opportunity scores. API-derived video metadata and non-authorized statistics expire after 30 days.
+
+Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.
+
+Typical sequence after importing the product catalogue:
+
+    python scripts/validate_sources.py --db data/registry.sqlite --queries configs/youtube_queries.csv
+    python scripts/collect_youtube.py --db data/registry.sqlite --queries configs/youtube_queries.csv --days-back 30
+    python scripts/purge_expired_youtube_data.py --db data/registry.sqlite
+
+The purge command is dry-run by default. Add --apply only after reviewing the reported count. Keep YOUTUBE_API_KEY in an environment variable; never place credentials in the repository.

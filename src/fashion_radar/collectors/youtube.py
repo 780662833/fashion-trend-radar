@@ -7,7 +7,7 @@ import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Protocol
 from urllib.error import HTTPError, URLError
@@ -197,6 +197,7 @@ def _parse_published_at(value: str) -> str:
 
 def _persist_video(conn: sqlite3.Connection, spec: QuerySpec, video: dict,
                    search_snippet: dict, snapshot_at: str) -> bool:
+    """Store one individual reference only; do not aggregate API data into product scores."""
     video_id = str(video.get("id") or "")
     if not video_id:
         return False
@@ -205,41 +206,32 @@ def _persist_video(conn: sqlite3.Connection, spec: QuerySpec, video: dict,
     if not published:
         return False
     published_at = _parse_published_at(published)
+    observed = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
+    expires_at = (observed + timedelta(days=30)).astimezone(timezone.utc).isoformat()
     title = str(snippet.get("title") or "")
     description = str(snippet.get("description") or "")
-    caption = (title + ("\n" + description if description else ""))[:4000]
-    hashtags = ";".join(dict.fromkeys(HASHTAG_RE.findall(caption)))
-    signal_id = _signal_id(spec.market_code, spec.product_id, video_id)
-    conn.execute(
-        """INSERT INTO social_signals(signal_id,product_id,platform,market_code,external_content_id,
-           content_url,published_at,observed_at,content_type,caption,hashtags,creator_key,source_method,
-           data_quality,is_synthetic,source_query)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)
-           ON CONFLICT(signal_id) DO UPDATE SET
-           content_url=excluded.content_url,published_at=excluded.published_at,
-           observed_at=excluded.observed_at,caption=excluded.caption,hashtags=excluded.hashtags,
-           creator_key=excluded.creator_key,source_method=excluded.source_method,
-           data_quality=excluded.data_quality,source_query=excluded.source_query""",
-        (signal_id, spec.product_id, "youtube", spec.market_code, video_id,
-         f"https://www.youtube.com/watch?v={video_id}", published_at, snapshot_at,
-         "video_search_result", caption, hashtags, _stable_creator_key(snippet.get("channelId")),
-         "youtube_data_api", 0.9, spec.query),
-    )
+    reference_id = _signal_id(spec.market_code, spec.product_id, video_id)
     statistics = video.get("statistics") or {}
-    if statistics:
-        conn.execute(
-            """INSERT INTO metric_snapshots(signal_id,snapshot_at,views,likes,comments,shares,saves,
-               creator_followers,metric_source,is_synthetic)
-               VALUES(?,?,?,?,?,NULL,NULL,NULL,'youtube_data_api',0)
-               ON CONFLICT(signal_id,snapshot_at) DO UPDATE SET
-               views=excluded.views,likes=excluded.likes,comments=excluded.comments,
-               metric_source=excluded.metric_source,is_synthetic=0""",
-            (signal_id, snapshot_at, _as_nonnegative_int(statistics.get("viewCount")),
-             _as_nonnegative_int(statistics.get("likeCount")),
-             _as_nonnegative_int(statistics.get("commentCount"))),
-        )
+    conn.execute(
+        """INSERT INTO youtube_video_references(reference_id,product_id,market_code,video_id,
+           search_query,content_url,published_at,observed_at,expires_at,title,description,
+           view_count,like_count,comment_count)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(product_id,market_code,video_id) DO UPDATE SET
+           reference_id=excluded.reference_id,search_query=excluded.search_query,
+           content_url=excluded.content_url,published_at=excluded.published_at,
+           observed_at=excluded.observed_at,expires_at=excluded.expires_at,
+           title=excluded.title,description=excluded.description,
+           view_count=excluded.view_count,like_count=excluded.like_count,
+           comment_count=excluded.comment_count""",
+        (reference_id, spec.product_id, spec.market_code, video_id, spec.query,
+         f"https://www.youtube.com/watch?v={video_id}", published_at, snapshot_at,
+         expires_at, title[:500], description[:4000],
+         _as_nonnegative_int(statistics.get("viewCount")),
+         _as_nonnegative_int(statistics.get("likeCount")),
+         _as_nonnegative_int(statistics.get("commentCount"))),
+    )
     return True
-
 
 def collect_youtube(db_path: str | Path, query_file: str | Path, published_after: str,
                     max_results: int = 25, api_key: str | None = None,

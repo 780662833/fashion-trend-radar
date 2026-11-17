@@ -73,12 +73,14 @@ def _score_one(conn: sqlite3.Connection, product_id: str, market: str, score_dat
 
     # 1) Demand evidence: search change, independent creators and explicit intent.
     demand_parts: list[tuple[float, float]] = []
-    search_by_keyword: dict[str, list[sqlite3.Row]] = {}
+    search_by_comparison: dict[tuple[str, str, str], list[sqlite3.Row]] = {}
     for row in search:
-        search_by_keyword.setdefault(row["keyword"], []).append(row)
+        comparison_group = row["comparison_group"] if "comparison_group" in row.keys() else ""
+        key = (row["keyword"], row["source"], comparison_group)
+        search_by_comparison.setdefault(key, []).append(row)
     search_growths = [
         _scaled_log_growth(float(rows[0]["interest_index"]), float(rows[-1]["interest_index"]))
-        for rows in search_by_keyword.values()
+        for rows in search_by_comparison.values()
         if len(rows) >= 2
     ]
     if search_growths:

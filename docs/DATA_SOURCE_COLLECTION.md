@@ -20,7 +20,7 @@ This document distinguishes working collection paths from manual research and un
 The collector uses:
 - search.list for video discovery with type=video, regionCode, relevanceLanguage, order=date and publishedAfter.
 - videos.list for public snippet and statistics data in batches of up to 50 IDs.
-- The returned public statistics are snapshots, not a time series until the same video is collected again.
+- The returned public statistics are attached only to the individual video reference; this project does not calculate product-level or cross-channel scores from YouTube API data.
 
 regionCode describes the search request's regional context. It does **not** prove the audience, creator residence, or viewer location. The market_code stored on a signal must therefore be interpreted as the region used for the search.
 
@@ -60,9 +60,22 @@ Failed attempts are logged too. The collector fetches one search page per query 
 
    python scripts/collect_youtube.py --db data/registry.sqlite --queries configs/youtube_queries.csv --days-back 30 --max-results 25
 
-The collector writes social_signals, metric_snapshots, source_runs and api_request_log. Channel IDs are stored only as a stable SHA-256-derived key. Public like/comment counts may be absent and remain NULL; shares and saves are not inferred.
+The collector writes individual rows to youtube_video_references plus source_runs and api_request_log. It does not insert YouTube API results into social_signals or metric_snapshots, so those records cannot enter product scoring. Channel identifiers are not stored. Missing public statistics remain NULL; shares and saves are not inferred. Each reference expires 30 days after collection and must be purged or refreshed before then.
 
 To explicitly test the API credential with one read-only API request, add --probe-youtube to validate_sources.py. This consumes one search.list quota call and is logged.
+
+
+## YouTube API data retention
+
+YouTube API Data is treated separately from first-party/manual observations:
+- Individual video references only; no product-level aggregation or cross-platform scoring from YouTube API Data.
+- No audiovisual content is downloaded or cached.
+- Public video metadata and non-authorized statistics are set to expire 30 days after collection.
+- Run the scheduled/manual purge script regularly: python scripts/purge_expired_youtube_data.py --db data/registry.sqlite --apply
+- The default purge mode is dry-run. Review the number of rows before applying.
+- Additional derived metrics and extended statistical retention require an explicitly accepted YouTube policy amendment / approved analytics use case. This project does not assume that approval.
+
+The YouTube developer policy says non-authorized API Data may only be temporarily stored for up to 30 calendar days, and it restricts aggregation of API Data across unrelated channels. See the official policy links below before changing this design.
 
 ## TikTok Creative Center capture procedure
 
@@ -111,6 +124,8 @@ A successful HTTP/API response is not proof of trend representativeness. The sys
 - YouTube search.list: https://developers.google.com/youtube/data/reference/rest/v3/search/list
 - YouTube videos.list: https://developers.google.com/youtube/data/reference/rest/v3/videos/list
 - YouTube quota calculator: https://developers.google.com/youtube/data/determine_quota_cost
+- YouTube Developer Policies (data aggregation and storage): https://developers.google.com/youtube/terms/developer-policies
+- YouTube additional derived metrics policy (approval required for the permitted analytics exceptions): https://developers.google.com/youtube/terms/derived-metrics-policy
 - TikTok Creative Center trends: https://ads.tiktok.com/creative/creativeCenter/trends?region=US
 - Google Trends API alpha: https://developers.google.com/search/apis/trends
 - Reddit Data API policy: https://redditinc.com/policies/data-api-terms

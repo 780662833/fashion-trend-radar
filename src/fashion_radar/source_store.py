@@ -43,6 +43,26 @@ def ensure_source_tables(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_api_usage_day
             ON api_request_log(provider, quota_bucket, quota_date_pt);
+        CREATE TABLE IF NOT EXISTS youtube_video_references (
+            reference_id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+            market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
+            video_id TEXT NOT NULL,
+            search_query TEXT NOT NULL,
+            content_url TEXT NOT NULL,
+            published_at TEXT NOT NULL,
+            observed_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            view_count INTEGER,
+            like_count INTEGER,
+            comment_count INTEGER,
+            UNIQUE(product_id, market_code, video_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_youtube_refs_expiry ON youtube_video_references(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_youtube_refs_product_market
+            ON youtube_video_references(product_id, market_code);
         CREATE TABLE IF NOT EXISTS source_observations (
             observation_id TEXT PRIMARY KEY, source_name TEXT NOT NULL,
             observation_type TEXT NOT NULL, market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
@@ -111,3 +131,16 @@ def finish_api_request(conn, request_id: int, succeeded: bool, error_code: str =
         "UPDATE api_request_log SET finished_at=?,succeeded=?,error_code=? WHERE request_id=?",
         (utc_now().isoformat(), int(succeeded), error_code[:120], request_id),
     )
+
+
+def purge_expired_youtube_references(conn, now: datetime | None = None) -> int:
+    """Delete public YouTube API reference rows once their 30-day retention expires."""
+    instant = now or utc_now()
+    if instant.tzinfo is None:
+        instant = instant.replace(tzinfo=timezone.utc)
+    cutoff = instant.astimezone(timezone.utc).isoformat()
+    cursor = conn.execute(
+        "DELETE FROM youtube_video_references WHERE expires_at<=?",
+        (cutoff,),
+    )
+    return int(cursor.rowcount)

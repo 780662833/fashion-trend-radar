@@ -177,3 +177,27 @@ def test_google_trends_manual_rows_preserve_comparison_group(tmp_path):
     assert row["interest_index"] == 72
     assert row["comparison_group"] == "GB_BAGS_2026_10"
     assert observation == 1
+
+
+
+def test_manual_source_import_rejects_non_official_source_domain(tmp_path):
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    csv_path = tmp_path / "bad_source.csv"
+    csv_path.write_text(
+        "source_name,observation_type,market_code,keyword,metric_name,metric_value,"
+        "metric_unit,period_start,period_end,source_url,captured_at\n"
+        "tiktok_creative_center,trend,US,sneaker,views,100,views,2026-11-01,2026-11-07,"
+        "https://not-tiktok.example/trends,2026-11-16T10:00:00Z\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/import_source_observations.py"),
+         "--db", str(db), "--file", str(csv_path)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 1
+    assert "source_url must be an HTTPS URL on" in result.stdout
+    with connect(db) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM source_observations").fetchone()[0]
+    assert count == 0

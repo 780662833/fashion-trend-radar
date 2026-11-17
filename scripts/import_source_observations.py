@@ -22,11 +22,25 @@ ALLOWED_SOURCES = {
 MARKETS = {"US", "CA", "GB"}
 
 
-def _valid_url(value: str, required: bool = True) -> bool:
+SOURCE_DOMAINS = {
+    "tiktok_creative_center": {"ads.tiktok.com"},
+    "google_trends_ui": {"trends.google.com"},
+    "pinterest_trends_ui": {"trends.pinterest.com", "pinterest.com"},
+    "reddit_manual": {"reddit.com"},
+    "instagram_manual": {"instagram.com"},
+}
+
+
+def _valid_url(value: str, required: bool = True, allowed_domains: set[str] | None = None) -> bool:
     if not value and not required:
         return True
     parsed = urlparse(value)
-    return parsed.scheme == "https" and bool(parsed.netloc)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    if not allowed_domains:
+        return True
+    hostname = parsed.hostname.lower()
+    return any(hostname == domain or hostname.endswith("." + domain) for domain in allowed_domains)
 
 
 def _parse_row(row: dict[str, str], line: int) -> dict:
@@ -43,8 +57,9 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         raise ValueError(f"row {line}: market_code must be US, CA or GB")
     if not keyword or not metric_name or not metric_unit:
         raise ValueError(f"row {line}: keyword, metric_name and metric_unit are required")
-    if not _valid_url(source_url):
-        raise ValueError(f"row {line}: source_url must be an https URL")
+    if not _valid_url(source_url, allowed_domains=SOURCE_DOMAINS[source]):
+        expected = ", ".join(sorted(SOURCE_DOMAINS[source]))
+        raise ValueError(f"row {line}: source_url must be an HTTPS URL on: {expected}")
     supporting_url = (row.get("supporting_content_url") or "").strip()
     if not _valid_url(supporting_url, required=False):
         raise ValueError(f"row {line}: supporting_content_url must be https when supplied")
