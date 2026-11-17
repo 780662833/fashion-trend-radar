@@ -1,0 +1,1 @@
+"""Authorized data-source collectors for Fashion Trend Radar."""
