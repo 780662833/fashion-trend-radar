@@ -22,6 +22,11 @@ def _seed(db: Path) -> None:
                       'CU1110-010','AJ4 Black Cat;Jordan 4 Black Cat','unisex',0.98)"""
         )
         ensure_source_tables(conn)
+        conn.executemany(
+            """INSERT INTO product_market(product_id,market_code,currency,market_status)
+               VALUES('SHOE-001',?,?, 'watching')""",
+            [("US", "USD"), ("CA", "CAD"), ("GB", "GBP")],
+        )
 
 
 def test_product_evidence_import_and_catalog_audit_ready(tmp_path):
