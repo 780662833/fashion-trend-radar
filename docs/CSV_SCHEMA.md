@@ -67,3 +67,19 @@ TikTok Creative Center and Google Trends aggregate observations use the dedicate
 For Google Trends, comparison_group is mandatory. It must identify the exact country, query comparison set, search type and time window. Values normalized in different comparison groups must never be compared as a growth series. When product_id is included, the importer also writes a search_snapshots row while preserving comparison_group.
 
 `product_id` is optional for aggregate observations and supported for TikTok, Google Trends, Pinterest, Reddit and Instagram rows. When supplied, it must match an existing product and is stored on `source_observations`, so the observation can be traced back to the product and market. Google Trends rows with a product_id additionally create/update `search_snapshots`. Leave product_id blank only when the observation is intentionally market/keyword-level rather than product-specific.
+
+
+## product_market.csv
+
+One row per product and market. Required: `product_id,market_code,currency`.
+
+Optional: `local_price,market_search_terms,market_status,source_url,observed_at`.
+
+- Currency is fixed by market: US=`USD`, CA=`CAD`, GB=`GBP`.
+- `market_search_terms` is a semicolon-separated list of locally reviewed phrases.
+- `market_status` accepts `watching`, `active` or `paused`. Paused mappings are excluded from generated research plans.
+- `local_price` is contextual catalogue information, not a trend or demand metric.
+
+Import with `python scripts/import_product_markets.py --db data/registry.sqlite --file path\\product_market.csv`. The import is an idempotent upsert by product_id and market_code.
+
+Generate product/market/source query tasks with `python scripts/generate_research_plan.py --db data/registry.sqlite --out configs/manual_research/research_query_plan.csv`. Query tasks are not observations. Google Trends terms are grouped in batches of at most five; never compare indices across different comparison_group values.
