@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fashion-trend-radar"
+version = "0.1.0"
+description = "Evidence-led social content opportunity research for sneakers and bags."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Fashion Trend Radar contributors" }]
+dependencies = [
+  "pydantic>=2.7,<3",
+  "rapidfuzz>=3.9,<4",
+]
+
+[project.optional-dependencies]
+warehouse = ["polars>=1.0,<2", "duckdb>=1.0,<2"]
+app = ["streamlit>=1.37,<2"]
+dev = ["pytest>=8,<10", "ruff>=0.6,<1"]
+
+[project.scripts]
+fashion-radar = "fashion_radar.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

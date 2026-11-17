@@ -1,0 +1,3 @@
+experiment_id,product_id,platform,market_code,content_angle,hook,post_url,published_at,video_length_seconds,format,notes,is_synthetic
+DEMO-EXP-SNEAKER-01,DEMO-SNEAKER-001,tiktok,US,on_foot,3 ways to style this retro court silhouette,https://example.invalid/demo/experiment-sneaker,2026-11-11T17:00:00Z,14,short_video,synthetic example only,true
+DEMO-EXP-BAG-01,DEMO-BAG-001,instagram,GB,what_fits,What fits inside this everyday shoulder bag?,https://example.invalid/demo/experiment-bag,2026-11-12T17:00:00Z,18,reel,synthetic example only,true

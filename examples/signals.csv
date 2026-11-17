@@ -1,0 +1,7 @@
+signal_id,product_id,platform,market_code,external_content_id,content_url,published_at,observed_at,content_type,caption,hashtags,creator_key,source_method,data_quality,is_synthetic
+DEMO-YT-US-001,DEMO-SNEAKER-001,youtube,US,demo001,https://example.invalid/demo/sneaker-us-1,2026-11-01T12:00:00Z,2026-11-02T12:00:00Z,on_foot,Demo on-foot styling clip,#sneaker;#streetwear,creator_a,manual_demo,1.0,true
+DEMO-TT-US-001,DEMO-SNEAKER-001,tiktok,US,demo002,https://example.invalid/demo/sneaker-us-2,2026-11-03T12:00:00Z,2026-11-04T12:00:00Z,styling,Demo outfit pairing clip,#sneakerstyle;#outfit,creator_b,manual_demo,1.0,true
+DEMO-IG-CA-001,DEMO-SNEAKER-001,instagram,CA,demo003,https://example.invalid/demo/sneaker-ca-1,2026-11-04T12:00:00Z,2026-11-05T12:00:00Z,detail,Demo material close-up,#sneaker;#details,creator_c,manual_demo,1.0,true
+DEMO-YT-GB-001,DEMO-SNEAKER-001,youtube,GB,demo004,https://example.invalid/demo/sneaker-gb-1,2026-11-05T12:00:00Z,2026-11-06T12:00:00Z,review,Demo review clip,#retro;#sneakers,creator_d,manual_demo,1.0,true
+DEMO-TT-US-BAG-001,DEMO-BAG-001,tiktok,US,demo005,https://example.invalid/demo/bag-us-1,2026-11-02T12:00:00Z,2026-11-03T12:00:00Z,what_fits,Demo what-fits video,#handbag;#whatsinmybag,creator_e,manual_demo,1.0,true
+DEMO-IG-GB-BAG-001,DEMO-BAG-001,instagram,GB,demo006,https://example.invalid/demo/bag-gb-1,2026-11-06T12:00:00Z,2026-11-07T12:00:00Z,styling,Demo outfit styling video,#bag;#minimalstyle,creator_f,manual_demo,1.0,true

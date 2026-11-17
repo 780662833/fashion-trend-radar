@@ -1,0 +1,5 @@
+experiment_id,snapshot_at,views,likes,comments,shares,saves,profile_visits,follows,metric_source,is_synthetic
+DEMO-EXP-SNEAKER-01,2026-11-12T17:00:00Z,2100,140,14,22,18,30,4,manual_demo,true
+DEMO-EXP-SNEAKER-01,2026-11-16T17:00:00Z,3900,260,24,42,31,58,8,manual_demo,true
+DEMO-EXP-BAG-01,2026-11-13T17:00:00Z,1300,110,10,15,20,20,3,manual_demo,true
+DEMO-EXP-BAG-01,2026-11-16T17:00:00Z,2500,190,18,27,36,42,6,manual_demo,true

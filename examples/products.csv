@@ -1,0 +1,3 @@
+product_id,category,subcategory,brand,model_name,canonical_name,style_code,aliases,colorway,material,audience_tag,style_tags,release_date,identity_confidence
+DEMO-SNEAKER-001,sneaker,lifestyle,Sample Brand,Retro Court 01,Retro Court 01,,retro court;sample sneaker;court shoe,cream navy,synthetic leather,unisex,retro;casual;streetwear,2026-10-01,1.0
+DEMO-BAG-001,bag,shoulder_bag,Sample Studio,Everyday Shoulder 01,Everyday Shoulder 01,,everyday shoulder;sample shoulder bag;mini shoulder,espresso brown,vegan leather,women,minimal;everyday;quiet luxury,2026-09-15,1.0

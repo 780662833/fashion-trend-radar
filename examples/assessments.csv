@@ -1,0 +1,3 @@
+product_id,market_code,visual_potential,angle_richness,production_ease,competition_saturation,notes,assessed_at,is_synthetic
+DEMO-SNEAKER-001,US,88,82,90,45,合成演示：可做上脚、细节、搭配三种角度,2026-11-10T12:00:00Z,true
+DEMO-BAG-001,US,84,91,86,38,合成演示：可做容量、搭配、材质三种角度,2026-11-10T12:00:00Z,true
