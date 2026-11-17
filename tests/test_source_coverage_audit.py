@@ -82,7 +82,13 @@ def test_synthetic_only_and_stale_rows_do_not_count_as_current_coverage(tmp_path
     assert statuses[("tiktok_creative_center", "CA")] == "stale"
     assert statuses[("tiktok_creative_center", "GB")] == "missing"
     assert report["required_sources_ready"] is False
-    assert {
-        tuple((gap["source_name"], *gap["markets_not_current"]))
-        for gap in report["required_source_gaps"]
-    }
+    assert report["required_source_gaps"] == [
+        {
+            "source_name": "tiktok_creative_center",
+            "markets_not_current": ["US", "CA", "GB"],
+        },
+        {
+            "source_name": "google_trends_ui",
+            "markets_not_current": ["US", "CA", "GB"],
+        },
+    ]
