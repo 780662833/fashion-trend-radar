@@ -37,10 +37,11 @@ Failed attempts are logged too. The collector fetches one search page per query 
 ### Configure and run (Windows PowerShell)
 
 1. Create a Google Cloud project, enable YouTube Data API v3, and create an API key. Restrict the key to the YouTube Data API and suitable application restrictions.
-2. Keep the key out of Git. Set it in the current PowerShell session:
+2. In the repository root, run the local secure prompt:
 
-   $env:YOUTUBE_API_KEY = "YOUR_API_KEY"
+   python scripts/configure_youtube_api_key.py
 
+   The key is typed without echo and saved to the gitignored local .env file. Never paste it into GitHub, CSVs, issue comments or chat.
 3. Create configs/youtube_queries.csv from configs/youtube_queries_template.csv. Example rows:
 
    product_id,market_code,query,language
@@ -52,7 +53,7 @@ Failed attempts are logged too. The collector fetches one search page per query 
    YOUR-BAG-ID,GB,womens shoulder bag styling,en
 
 4. Ensure the product IDs exist in the local SQLite registry.
-5. Validate the plan, without using quota:
+5. Validate the plan and local key configuration, without using quota:
 
    python scripts/validate_sources.py --db data/registry.sqlite --queries configs/youtube_queries.csv
 
@@ -60,7 +61,7 @@ Failed attempts are logged too. The collector fetches one search page per query 
 
    python scripts/collect_youtube.py --db data/registry.sqlite --queries configs/youtube_queries.csv --days-back 30 --max-results 25
 
-The collector writes individual rows to youtube_video_references plus source_runs and api_request_log. It does not insert YouTube API results into social_signals or metric_snapshots, so those records cannot enter product scoring. Channel identifiers are not stored. Missing public statistics remain NULL; shares and saves are not inferred. Each reference expires 30 days after collection and must be purged or refreshed before then.
+The collector loads the gitignored .env file if present, while preserving any environment variable already set by the caller. It writes individual rows to youtube_video_references plus source_runs and api_request_log. It does not insert YouTube API results into social_signals or metric_snapshots, so those records cannot enter product scoring. Channel identifiers are not stored. Missing public statistics remain NULL; shares and saves are not inferred. Each reference expires 30 days after collection and must be purged or refreshed before then.
 
 To explicitly test the API credential with one read-only API request, add --probe-youtube to validate_sources.py. This consumes one search.list quota call and is logged.
 

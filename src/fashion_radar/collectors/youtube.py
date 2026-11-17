@@ -242,6 +242,8 @@ def collect_youtube(db_path: str | Path, query_file: str | Path, published_after
         raise ValueError("published_after is required; use a bounded research window")
     initialize(db_path)
     queries = load_query_plan(query_file, db_path)
+    from ..source_store import load_local_env
+    load_local_env()
     run_id = str(uuid4())
     api = client or YouTubeApiClient(api_key or os.getenv("YOUTUBE_API_KEY", ""))
     errors: list[str] = []
@@ -311,6 +313,8 @@ def collect_youtube(db_path: str | Path, query_file: str | Path, published_after
 def probe_youtube_api(db_path: str | Path, api_key: str | None = None) -> dict:
     """Make one explicitly requested read-only API call and record its quota use."""
     initialize(db_path)
+    from ..source_store import load_local_env
+    load_local_env()
     run_id = str(uuid4())
     api = YouTubeApiClient(api_key or os.getenv("YOUTUBE_API_KEY", ""))
     with connect(db_path) as conn:

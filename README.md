@@ -147,6 +147,12 @@ fashion-radar --db PATH warehouse-refresh --out DIR
 
 ## Data source collection and validation
 
+Configure a local YouTube API key securely with:
+
+    python scripts/configure_youtube_api_key.py
+
+The hidden-input prompt writes to the gitignored .env file; never commit credentials.
+
 YouTube public video references are collected only through the official YouTube Data API. The collector stores individual references separately from the product-scoring tables; it does not aggregate YouTube API metrics into opportunity scores. API-derived video metadata and non-authorized statistics expire after 30 days.
 
 Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.

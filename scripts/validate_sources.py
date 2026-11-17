@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fashion_radar.collectors.youtube import load_query_plan, probe_youtube_api
 from fashion_radar.db import connect, initialize
-from fashion_radar.source_store import ensure_source_tables
+from fashion_radar.source_store import ensure_source_tables, load_local_env
 
 
 def main() -> int:
@@ -18,6 +18,7 @@ def main() -> int:
     parser.add_argument("--probe-youtube", action="store_true",
                         help="Perform one quota-counted, read-only YouTube search request.")
     args = parser.parse_args()
+    load_local_env()
 
     initialize(args.db)
     with connect(args.db) as conn:

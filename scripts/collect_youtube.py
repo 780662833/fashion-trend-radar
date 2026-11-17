@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timedelta, timezone
 
 from fashion_radar.collectors.youtube import collect_youtube
+from fashion_radar.source_store import load_local_env
 
 
 def main() -> int:
@@ -16,6 +17,7 @@ def main() -> int:
     parser.add_argument("--days-back", type=int, default=30)
     parser.add_argument("--max-results", type=int, default=25)
     args = parser.parse_args()
+    load_local_env()
     if args.days_back < 1 or args.days_back > 365:
         parser.error("--days-back must be between 1 and 365")
 

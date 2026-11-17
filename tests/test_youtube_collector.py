@@ -266,3 +266,20 @@ def test_search_growth_never_crosses_google_trends_comparison_groups(tmp_path):
         )
     assert result.component_scores["demand_evidence"] is None
     assert any("搜索趋势只有单期记录" in note for note in result.limitations)
+
+
+
+def test_local_env_loads_missing_values_without_overwriting_existing(monkeypatch, tmp_path):
+    from fashion_radar.source_store import load_local_env
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "# local-only credentials\nYOUTUBE_API_KEY=\"local-key\"\nOTHER_VALUE=ok\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("YOUTUBE_API_KEY", "caller-key")
+    monkeypatch.delenv("OTHER_VALUE", raising=False)
+    assert load_local_env(str(env_file))
+    import os
+    assert os.getenv("YOUTUBE_API_KEY") == "caller-key"
+    assert os.getenv("OTHER_VALUE") == "ok"
