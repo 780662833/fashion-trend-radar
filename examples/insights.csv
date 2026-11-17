@@ -1,0 +1,5 @@
+product_id,market_code,topic,intent_type,mention_count,sample_size,source_url,confidence,observed_at,is_synthetic
+DEMO-SNEAKER-001,US,styling options,comparison,7,30,https://example.invalid/demo/comments-sneaker,0.8,2026-11-10T12:00:00Z,true
+DEMO-SNEAKER-001,US,price questions,price_question,5,30,https://example.invalid/demo/comments-sneaker,0.8,2026-11-10T12:00:00Z,true
+DEMO-BAG-001,US,capacity questions,purchase_intent,8,25,https://example.invalid/demo/comments-bag,0.8,2026-11-10T12:00:00Z,true
+DEMO-BAG-001,GB,material questions,comparison,3,15,https://example.invalid/demo/comments-bag-gb,0.7,2026-11-10T12:00:00Z,true

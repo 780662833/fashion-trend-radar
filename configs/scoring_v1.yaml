@@ -1,0 +1,22 @@
+model_version: rules-v1.0
+score_weights:
+  demand_evidence: 25
+  trend_momentum_lifecycle: 20
+  content_potential: 20
+  market_spread: 15
+  competition_gap: 10
+  evidence_quality: 10
+markets: [US, CA, GB]
+recommendation_thresholds:
+  prioritize_content_test: 80
+  small_content_test: 70
+  observe: 60
+minimum_data_coverage_for_recommendation: 60
+evidence_grade:
+  A: "12+ evidence records, 3 platforms, 2+ markets, no synthetic evidence"
+  B: "5+ evidence records, 2+ platforms, no synthetic evidence"
+  C: "otherwise"
+notes:
+  - "These are initial heuristic weights, not empirically calibrated predictions."
+  - "Missing data remains unknown and is not converted to zero; total score is a conservative weighted contribution."
+  - "Synthetic demo records can validate software only and must not be used for product decisions."
