@@ -37,6 +37,10 @@ def test_required_sources_ready_only_when_all_markets_have_current_real_data(tmp
     initialize(db)
     with connect(db) as conn:
         ensure_source_tables(conn)
+        conn.execute(
+            """INSERT INTO products(product_id,category,subcategory,brand,model_name,canonical_name)
+               VALUES('SHOE-001','sneaker','basketball','Example','Model One','Example Model One')"""
+        )
         for source in ("tiktok_creative_center", "google_trends_ui"):
             for market in ("US", "CA", "GB"):
                 _add_observation(
