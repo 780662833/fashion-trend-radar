@@ -157,8 +157,9 @@ YouTube public video references are collected only through the official YouTube 
 
 Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.
 
-Generate a repeatable product/market keyword plan after importing products:
+Generate a repeatable product/market keyword plan after importing products. Copy the market template first and fill product IDs and local terms:
 
+    Copy-Item configs/product_market_template.csv configs/product_market.csv
     python scripts/import_product_markets.py --db data/registry.sqlite --file configs/product_market.csv
     python scripts/generate_research_plan.py --db data/registry.sqlite --out configs/manual_research/research_query_plan.csv
 
