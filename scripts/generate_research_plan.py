@@ -32,12 +32,27 @@ def _clean(value: str) -> str:
     return " ".join(value.split()).strip()
 
 
-def _market_category_term(category: str, market: str) -> str:
+def _market_category_term(category: str, subcategory: str, market: str) -> str:
     if category == "sneaker":
-        return "trainers" if market == "GB" else "sneakers"
-    if market == "GB":
-        return "handbag"
-    return "purse"
+        footwear = "trainers" if market == "GB" else "sneakers"
+        category_prefix = {
+            "basketball": "basketball",
+            "running": "running",
+            "skate": "skate",
+            "hiking": "hiking",
+            "retro_court": "retro court",
+        }.get(subcategory, "")
+        return _clean(f"{category_prefix} {footwear}")
+    bag_terms = {
+        "shoulder_bag": "shoulder bag",
+        "tote": "tote bag",
+        "crossbody": "crossbody bag",
+        "backpack": "backpack",
+        "top_handle": "top handle bag",
+        "clutch": "clutch bag",
+        "mini_bag": "mini handbag" if market == "GB" else "mini purse",
+    }
+    return bag_terms.get(subcategory, "handbag" if market == "GB" else "purse")
 
 
 def build_product_queries(product: dict, market: str, market_terms: str = "") -> list[dict]:
@@ -58,7 +73,7 @@ def build_product_queries(product: dict, market: str, market_terms: str = "") ->
 
     if category == "sneaker":
         candidates.extend([
-            ("category_discovery", f'{canonical} {_market_category_term(category, market)}', 2,
+            ("category_discovery", f'{canonical} {_market_category_term(category, product["subcategory"], market)}', 2,
              "market-local category vocabulary"),
         ])
         intents = SNEAKER_INTENTS
