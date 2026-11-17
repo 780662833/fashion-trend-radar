@@ -92,6 +92,7 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         "source_name": source,
         "observation_type": (row.get("observation_type") or "trend").strip(),
         "market_code": market,
+        "product_id": (row.get("product_id") or "").strip() or None,
         "keyword": keyword,
         "metric_name": metric_name,
         "metric_value": value,
@@ -134,35 +135,35 @@ def main() -> int:
             for line, row in enumerate(reader, start=2):
                 try:
                     item = _parse_row(row, line)
-                    product_id = (row.get("product_id") or "").strip()
-                    if item["source_name"] == "google_trends_ui" and product_id:
+                    product_id = item["product_id"]
+                    if product_id:
                         exists = conn.execute(
                             "SELECT 1 FROM products WHERE product_id=?", (product_id,)
                         ).fetchone()
                         if not exists:
                             raise ValueError(f"row {line}: unknown product_id {product_id!r}")
                     identity = "|".join(
-                        str(item[key]) for key in (
-                            "source_name", "market_code", "keyword", "metric_name",
+                        str(item[key] or "") for key in (
+                            "source_name", "market_code", "product_id", "keyword", "metric_name",
                             "period_start", "period_end", "comparison_group", "source_url",
                         )
                     )
                     item["observation_id"] = hashlib.sha256(identity.encode("utf-8")).hexdigest()
                     conn.execute(
                         """INSERT INTO source_observations(observation_id,source_name,observation_type,
-                           market_code,keyword,metric_name,metric_value,metric_unit,period_start,period_end,
-                           comparison_group,source_url,supporting_content_url,captured_at,collection_method,
-                           notes,is_synthetic,validation_status)
-                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'accepted')
+                           market_code,product_id,keyword,metric_name,metric_value,metric_unit,
+                           period_start,period_end,comparison_group,source_url,supporting_content_url,
+                           captured_at,collection_method,notes,is_synthetic,validation_status)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,'accepted')
                            ON CONFLICT(observation_id) DO UPDATE SET metric_value=excluded.metric_value,
                            metric_unit=excluded.metric_unit,captured_at=excluded.captured_at,
                            supporting_content_url=excluded.supporting_content_url,notes=excluded.notes,
-                           validation_status='accepted'""",
+                           product_id=excluded.product_id,validation_status='accepted'""",
                         tuple(item[key] for key in (
-                            "observation_id","source_name","observation_type","market_code","keyword",
-                            "metric_name","metric_value","metric_unit","period_start","period_end",
-                            "comparison_group","source_url","supporting_content_url","captured_at",
-                            "collection_method","notes",
+                            "observation_id","source_name","observation_type","market_code","product_id",
+                            "keyword","metric_name","metric_value","metric_unit","period_start",
+                            "period_end","comparison_group","source_url","supporting_content_url",
+                            "captured_at","collection_method","notes",
                         )),
                     )
                     if item["source_name"] == "google_trends_ui" and product_id:
