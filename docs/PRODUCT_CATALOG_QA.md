@@ -2,6 +2,17 @@
 
 The product catalogue is the identity backbone for trend research. A typo or ambiguous alias can attach observations to the wrong shoe or bag, so product identity must be reviewed before query generation or scoring.
 
+## Prepare and import the product master
+
+Copy the blank template and fill one row per real product candidate:
+
+```powershell
+Copy-Item configs/products_template.csv configs/products.csv
+python -m fashion_radar.cli --db data/registry.sqlite import-products --file configs/products.csv
+```
+
+Use the exact manufacturer model name and style code where available. Separate aliases with semicolons; do not merge different colorways or generations into one row unless the manufacturer treats them as the same product identity. Use `identity_confidence` conservatively: 1.0 only when the exact model and style identity are clear, lower values when a model/colorway match is uncertain.
+
 ## Attach product references
 
 Copy `configs/product_evidence_template.csv` and add at least one reference per product:
