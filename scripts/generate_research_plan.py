@@ -116,6 +116,8 @@ def build_research_plan(conn, markets: tuple[str, ...] = MARKETS) -> list[dict]:
         product = dict(product_row)
         for market in markets:
             mapping = mapped.get((product["product_id"], market))
+            if mapping and mapping["market_status"] == "paused":
+                continue
             market_terms = mapping["market_search_terms"] if mapping else ""
             candidates = build_product_queries(product, market, market_terms)
             # TikTok and YouTube can use the complete bounded discovery list.
