@@ -57,7 +57,7 @@ def test_product_market_import_and_research_plan_are_market_specific(tmp_path):
     assert {row["market_code"] for row in rows} == {"US", "CA", "GB"}
     assert any(row["keyword"] == "mini purse" and row["market_code"] == "US" for row in rows)
     assert any(row["keyword"] == "small handbag" and row["market_code"] == "GB" for row in rows)
-    assert any(row["keyword"] == "Example Mini Shoulder handbag" and row["market_code"] == "GB" for row in rows)
+    assert any(row["keyword"] == "Example Mini Shoulder shoulder bag" and row["market_code"] == "GB" for row in rows)
     assert all(row["product_id"] == "BAG-001" for row in rows)
 
     groups: dict[str, list[str]] = defaultdict(list)
@@ -109,3 +109,24 @@ def test_paused_product_market_is_excluded_from_plan(tmp_path):
         rows = list(csv.DictReader(handle))
     assert rows
     assert {row["market_code"] for row in rows} == {"GB"}
+
+
+
+def test_uk_basketball_sneaker_queries_use_trainers_vocabulary(tmp_path):
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    with connect(db) as conn:
+        conn.execute(
+            """INSERT INTO products(product_id,category,subcategory,brand,model_name,canonical_name)
+               VALUES('SHOE-001','sneaker','basketball','Example','Court One','Example Court One')"""
+        )
+    plan_path = tmp_path / "uk_plan.csv"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/generate_research_plan.py"),
+         "--db", str(db), "--markets", "GB", "--out", str(plan_path)],
+        capture_output=True, text=True, cwd=ROOT, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    with plan_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert any(row["keyword"] == "Example Court One basketball trainers" for row in rows)
