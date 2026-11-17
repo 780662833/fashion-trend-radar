@@ -58,3 +58,21 @@ Not yet verified:
 - TikTok Creative Center and Google Trends import workflows are implemented as manual capture/import, not automated collectors.
 - Reddit, Instagram and Pinterest live API collectors are not implemented.
 - The YouTube collector is API-contract tested with a mocked client; actual account quota and key restrictions still need local validation.
+
+
+## Product-market research query planning phase
+
+Implemented on branch `feat/market-research-query-planner`:
+
+- Idempotent product-market CSV importer with market/currency validation and optional local search vocabulary.
+- Deterministic research query-plan generator based on product identity, style code, aliases, audience, category intent and optional market-specific terms.
+- Separate query tasks for TikTok Creative Center, Google Trends UI and optional official YouTube Data API.
+- Google Trends comparison groups are split into batches of at most five terms and uniquely scoped to a product-market pair.
+- Paused product-market mappings are excluded; missing mappings still receive a generated baseline plan for all requested markets.
+- Tests cover localized terms, currency mismatch, market coverage, comparison-group size and paused-market exclusion.
+
+Not yet verified:
+
+- No real product catalogue or product-market CSV has been supplied to this build environment.
+- Query generation has not collected platform observations and does not establish demand.
+- Real market samples still need to be manually captured and imported before opportunity scoring can be interpreted.
