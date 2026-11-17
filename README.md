@@ -157,6 +157,14 @@ YouTube public video references are collected only through the official YouTube 
 
 Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.
 
+Before generating queries, attach product identity references and audit the catalogue:
+
+    Copy-Item configs/product_evidence_template.csv configs/product_evidence.csv
+    python scripts/import_product_evidence.py --db data/registry.sqlite --file configs/product_evidence.csv
+    python scripts/audit_product_catalog.py --db data/registry.sqlite --out reports/product_catalog/audit.json
+
+See docs/PRODUCT_CATALOG_QA.md. Resolve all blockers before continuing.
+
 Generate a repeatable product/market keyword plan after importing products. Copy the market template first and fill product IDs and local terms:
 
     Copy-Item configs/product_market_template.csv configs/product_market.csv
