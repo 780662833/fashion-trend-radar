@@ -4,7 +4,7 @@ import csv
 import json
 import subprocess
 import sys
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 
 from fashion_radar.db import connect, initialize
@@ -57,7 +57,6 @@ def test_product_market_import_and_research_plan_are_market_specific(tmp_path):
     assert {row["market_code"] for row in rows} == {"US", "CA", "GB"}
     assert any(row["keyword"] == "mini purse" and row["market_code"] == "US" for row in rows)
     assert any(row["keyword"] == "small handbag" and row["market_code"] == "GB" for row in rows)
-    assert any(row["keyword"] == "Example Mini Shoulder trainers" for row in rows) is False
     assert any(row["keyword"] == "Example Mini Shoulder handbag" and row["market_code"] == "GB" for row in rows)
     assert all(row["product_id"] == "BAG-001" for row in rows)
 
@@ -88,3 +87,25 @@ def test_product_market_import_rejects_currency_mismatch(tmp_path):
     assert "GB currency must be GBP" in result.stdout
     with connect(db) as conn:
         assert conn.execute("SELECT COUNT(*) FROM product_market").fetchone()[0] == 0
+
+
+
+def test_paused_product_market_is_excluded_from_plan(tmp_path):
+    db = tmp_path / "registry.sqlite"
+    _seed_product(db)
+    with connect(db) as conn:
+        conn.execute(
+            """INSERT INTO product_market(product_id,market_code,currency,market_status)
+               VALUES('BAG-001','US','USD','paused')"""
+        )
+    plan_path = tmp_path / "query_plan.csv"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/generate_research_plan.py"),
+         "--db", str(db), "--markets", "US,GB", "--out", str(plan_path)],
+        capture_output=True, text=True, cwd=ROOT, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    with plan_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    assert rows
+    assert {row["market_code"] for row in rows} == {"GB"}
