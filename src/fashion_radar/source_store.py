@@ -66,6 +66,7 @@ def ensure_source_tables(conn) -> None:
         CREATE TABLE IF NOT EXISTS source_observations (
             observation_id TEXT PRIMARY KEY, source_name TEXT NOT NULL,
             observation_type TEXT NOT NULL, market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
+            product_id TEXT REFERENCES products(product_id) ON DELETE SET NULL,
             keyword TEXT NOT NULL, metric_name TEXT NOT NULL, metric_value REAL NOT NULL,
             metric_unit TEXT NOT NULL, period_start TEXT NOT NULL, period_end TEXT NOT NULL,
             comparison_group TEXT NOT NULL DEFAULT '', source_url TEXT NOT NULL,
@@ -79,6 +80,18 @@ def ensure_source_tables(conn) -> None:
         CREATE INDEX IF NOT EXISTS idx_source_observations_market_period
             ON source_observations(market_code, period_end);
         """
+    )
+    observation_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(source_observations)")
+    }
+    if "product_id" not in observation_columns:
+        conn.execute(
+            "ALTER TABLE source_observations ADD COLUMN product_id TEXT "
+            "REFERENCES products(product_id) ON DELETE SET NULL"
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_source_observations_product_market "
+        "ON source_observations(product_id, market_code, period_end)"
     )
 
 
