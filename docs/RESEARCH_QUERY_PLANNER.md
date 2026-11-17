@@ -40,7 +40,7 @@ The output includes:
 - language and suggested search window;
 - a distinct Google Trends comparison_group for each product-market comparison batch.
 
-The planner deduplicates terms within each product-market and caps each Google Trends comparison group at five terms. Never compare interest indices across different comparison_group values, markets, date windows or search types. TikTok and YouTube query tasks are prompts for manual research / optional official API use; no trend count or video count is fabricated.
+The planner deduplicates terms within each product-market, uses subtype-specific wording (for example, basketball trainers in GB and shoulder bag vs. mini purse), and caps each Google Trends comparison group at five terms. Never compare interest indices across different comparison_group values, markets, date windows or search types. TikTok and YouTube query tasks are prompts for manual research / optional official API use; no trend count or video count is fabricated.
 
 ## 3. Collect and import observations
 
