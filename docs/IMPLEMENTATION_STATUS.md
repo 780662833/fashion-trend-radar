@@ -37,3 +37,24 @@
 4. Add a repeatable manual-research import template for TikTok Creative Center and Google Trends.
 5. Validate product resolver behavior on real sneaker style codes and bag model names before automatic linking.
 6. Run the 4-week system-vs-human content experiment before adjusting scoring weights.
+
+
+## Data-source collection and validation phase
+
+Implemented on branch feat/data-source-collection-validation:
+
+- Official YouTube Data API collector for bounded product/market query plans, with one search page per query and explicit search/video request quota buckets.
+- Individual YouTube reference records isolated in youtube_video_references; they are not written to product-scoring social_signals or metric_snapshots.
+- 30-day expiry and a dry-run-first purge script for non-authorized YouTube API references.
+- Source-run and API-request ledgers for audit and quota validation.
+- Manual source-observation importer with market, date window, source URL, metric unit and validation checks.
+- Google Trends comparison_group preservation; score calculation compares only within the same keyword, source and comparison group.
+- Official-source domain checks for TikTok Creative Center, Google Trends, Pinterest Trends, Reddit and Instagram manual evidence.
+- Unit tests for collection mapping, quota budgets, YouTube isolation, retention, source URL validation and comparison-group boundaries.
+
+Not yet verified:
+
+- No live YouTube API request has been made in this environment because no API key was provided.
+- TikTok Creative Center and Google Trends import workflows are implemented as manual capture/import, not automated collectors.
+- Reddit, Instagram and Pinterest live API collectors are not implemented.
+- The YouTube collector is API-contract tested with a mocked client; actual account quota and key restrictions still need local validation.

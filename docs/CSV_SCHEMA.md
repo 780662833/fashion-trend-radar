@@ -58,3 +58,10 @@
 必需：`experiment_id,snapshot_at`。其他字段：`views,likes,comments,shares,saves,profile_visits,follows,metric_source,is_synthetic`。
 
 同一内容测试可以按 24 小时、72 小时、7 天等节点导入多份快照；对比实验时应尽量采用相同统计窗口。
+
+
+## Manual source observation import
+
+TikTok Creative Center and Google Trends aggregate observations use the dedicated templates under configs/manual_research/ and are imported with scripts/import_source_observations.py. This importer stores the exact source URL, market, metric unit, capture time and period window.
+
+For Google Trends, comparison_group is mandatory. It must identify the exact country, query comparison set, search type and time window. Values normalized in different comparison groups must never be compared as a growth series. When product_id is included, the importer also writes a search_snapshots row while preserving comparison_group.
