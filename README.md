@@ -48,6 +48,13 @@ reports/demo/warehouse/*.parquet
 
 ## 导入真实研究数据
 
+先从商品模板建立真实商品主表（不要将 examples 中的合成演示商品作为真实候选）：
+
+```powershell
+Copy-Item configs/products_template.csv configs/products.csv
+.\\.venv\\Scripts\\python.exe -m fashion_radar.cli --db data/registry.sqlite import-products --file configs/products.csv
+```
+
 先初始化独立数据库：
 
 ```powershell
