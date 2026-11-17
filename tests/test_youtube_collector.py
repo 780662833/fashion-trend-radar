@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timezone
 from pathlib import Path
 import subprocess
 import sys
@@ -8,7 +9,13 @@ import pytest
 
 from fashion_radar.collectors.youtube import QuerySpec, collect_youtube, load_query_plan
 from fashion_radar.db import connect, initialize
-from fashion_radar.source_store import QuotaBudgetExceeded, ensure_source_tables, reserve_api_request
+from fashion_radar.source_store import (
+    QuotaBudgetExceeded,
+    ensure_source_tables,
+    purge_expired_youtube_references,
+    reserve_api_request,
+)
+from fashion_radar.scoring import score_all
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,7 +76,7 @@ def test_query_plan_validates_market_and_product(tmp_path):
     assert plan == [QuerySpec("SHOE-001", "US", "Example Model One outfit", "en")]
 
 
-def test_youtube_collector_persists_signal_metrics_and_quota(tmp_path, monkeypatch):
+def test_youtube_collector_keeps_api_data_out_of_product_scoring(tmp_path, monkeypatch):
     db, query_file = _setup(tmp_path)
     monkeypatch.setenv("YOUTUBE_SEARCH_DAILY_BUDGET", "80")
     monkeypatch.setenv("YOUTUBE_OTHER_DAILY_BUDGET", "9000")
@@ -82,30 +89,29 @@ def test_youtube_collector_persists_signal_metrics_and_quota(tmp_path, monkeypat
     assert result.items_saved == 1
     assert [call[0] for call in client.calls] == ["search", "videos"]
     with connect(db) as conn:
-        signal = conn.execute(
-            "SELECT * FROM social_signals WHERE external_content_id='video-123'"
+        reference = conn.execute(
+            "SELECT * FROM youtube_video_references WHERE video_id='video-123'"
         ).fetchone()
-        metric = conn.execute(
-            "SELECT * FROM metric_snapshots WHERE signal_id=?", (signal["signal_id"],)
-        ).fetchone()
+        social_signal_count = conn.execute("SELECT COUNT(*) FROM social_signals").fetchone()[0]
+        metric_count = conn.execute("SELECT COUNT(*) FROM metric_snapshots").fetchone()[0]
         run = conn.execute("SELECT * FROM source_runs WHERE run_id=?", (result.run_id,)).fetchone()
         usage = conn.execute(
             "SELECT quota_bucket,COUNT(*) AS n FROM api_request_log GROUP BY quota_bucket"
         ).fetchall()
-    assert signal["market_code"] == "US"
-    assert signal["source_query"] == "Example Model One outfit"
-    assert signal["source_method"] == "youtube_data_api"
-    assert signal["creator_key"].startswith("ytc_")
-    assert "UC_PRIVATE_CHANNEL_ID" not in signal["creator_key"]
-    assert metric["views"] == 1200
-    assert metric["likes"] == 42
-    assert metric["comments"] == 7
-    assert metric["shares"] is None
+    assert reference["market_code"] == "US"
+    assert reference["search_query"] == "Example Model One outfit"
+    assert reference["title"] == "Sneaker styling ideas"
+    assert reference["view_count"] == 1200
+    assert reference["like_count"] == 42
+    assert reference["comment_count"] == 7
+    assert reference["expires_at"] > reference["observed_at"]
+    assert social_signal_count == 0
+    assert metric_count == 0
     assert run["status"] == "success"
     assert len(usage) == 2
 
 
-def test_collector_keeps_null_stats_if_video_detail_is_missing(tmp_path, monkeypatch):
+def test_collector_keeps_missing_youtube_statistics_null(tmp_path, monkeypatch):
     db, query_file = _setup(tmp_path)
 
     class SearchOnlyClient:
@@ -126,7 +132,13 @@ def test_collector_keeps_null_stats_if_video_detail_is_missing(tmp_path, monkeyp
     result = collect_youtube(db, query_file, "2026-10-17T00:00:00Z", client=SearchOnlyClient())
     assert result.items_saved == 1
     with connect(db) as conn:
+        reference = conn.execute(
+            "SELECT view_count,like_count,comment_count FROM youtube_video_references WHERE video_id='video-456'"
+        ).fetchone()
         metric_count = conn.execute("SELECT COUNT(*) FROM metric_snapshots").fetchone()[0]
+    assert reference["view_count"] is None
+    assert reference["like_count"] is None
+    assert reference["comment_count"] is None
     assert metric_count == 0
 
 
@@ -179,7 +191,6 @@ def test_google_trends_manual_rows_preserve_comparison_group(tmp_path):
     assert observation == 1
 
 
-
 def test_manual_source_import_rejects_non_official_source_domain(tmp_path):
     db = tmp_path / "registry.sqlite"
     initialize(db)
@@ -201,3 +212,57 @@ def test_manual_source_import_rejects_non_official_source_domain(tmp_path):
     with connect(db) as conn:
         count = conn.execute("SELECT COUNT(*) FROM source_observations").fetchone()[0]
     assert count == 0
+
+
+def test_youtube_reference_retention_purges_expired_rows_only(tmp_path):
+    db, _ = _setup(tmp_path)
+    with connect(db) as conn:
+        conn.execute(
+            """INSERT INTO youtube_video_references(reference_id,product_id,market_code,video_id,
+               search_query,content_url,published_at,observed_at,expires_at,title)
+               VALUES('old','SHOE-001','US','old-video','shoe','https://youtu.be/old',
+               '2026-10-01T00:00:00+00:00','2026-10-01T00:00:00+00:00',
+               '2026-10-31T00:00:00+00:00','Old title')"""
+        )
+        conn.execute(
+            """INSERT INTO youtube_video_references(reference_id,product_id,market_code,video_id,
+               search_query,content_url,published_at,observed_at,expires_at,title)
+               VALUES('fresh','SHOE-001','US','fresh-video','shoe','https://youtu.be/fresh',
+               '2026-11-15T00:00:00+00:00','2026-11-15T00:00:00+00:00',
+               '2026-12-15T00:00:00+00:00','Fresh title')"""
+        )
+        deleted = purge_expired_youtube_references(
+            conn, datetime(2026, 11, 16, tzinfo=timezone.utc)
+        )
+        remaining = conn.execute("SELECT video_id FROM youtube_video_references").fetchall()
+    assert deleted == 1
+    assert [row["video_id"] for row in remaining] == ["fresh"]
+
+
+def test_search_growth_never_crosses_google_trends_comparison_groups(tmp_path):
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    with connect(db) as conn:
+        ensure_source_tables(conn)
+        conn.execute(
+            """INSERT INTO products(product_id,category,subcategory,brand,model_name,canonical_name)
+               VALUES('BAG-002','bag','tote','Example','Bag Two','Example Bag Two')"""
+        )
+        conn.execute(
+            """INSERT INTO search_snapshots(product_id,market_code,keyword,period_start,period_end,
+               interest_index,source,captured_at,is_synthetic,comparison_group)
+               VALUES('BAG-002','US','tote bag','2026-10-01','2026-10-07',25,'google_trends_ui',
+               '2026-10-08T00:00:00Z',0,'US_TOTE_GROUP_A')"""
+        )
+        conn.execute(
+            """INSERT INTO search_snapshots(product_id,market_code,keyword,period_start,period_end,
+               interest_index,source,captured_at,is_synthetic,comparison_group)
+               VALUES('BAG-002','US','tote bag','2026-10-08','2026-10-14',90,'google_trends_ui',
+               '2026-10-15T00:00:00Z',0,'US_TOTE_GROUP_B')"""
+        )
+        result = next(
+            item for item in score_all(conn, date(2026, 11, 16))
+            if item.product_id == "BAG-002" and item.market_code == "US"
+        )
+    assert result.component_scores["demand_evidence"] is None
+    assert any("搜索趋势只有单期记录" in note for note in result.limitations)
