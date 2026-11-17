@@ -155,7 +155,7 @@ The hidden-input prompt writes to the gitignored .env file; never commit credent
 
 YouTube public video references are collected only through the official YouTube Data API. The collector stores individual references separately from the product-scoring tables; it does not aggregate YouTube API metrics into opportunity scores. API-derived video metadata and non-authorized statistics expire after 30 days.
 
-Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.\n\nAudit real US/CA/GB trend-source coverage with `python scripts/audit_source_coverage.py --db data/registry.sqlite`; see docs/SOURCE_COVERAGE_AUDIT.md for acceptance rules.
+Start with the data-source validation and collection guide in docs/DATA_SOURCE_COLLECTION.md.\nAudit real US/CA/GB trend-source coverage with `python scripts/audit_source_coverage.py --db data/registry.sqlite`; see docs/SOURCE_COVERAGE_AUDIT.md for acceptance rules.
 
 Typical sequence after importing the product catalogue:
 
