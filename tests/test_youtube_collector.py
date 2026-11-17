@@ -236,7 +236,7 @@ def test_youtube_reference_retention_purges_expired_rows_only(tmp_path):
         )
         remaining = conn.execute("SELECT video_id FROM youtube_video_references").fetchall()
     assert deleted == 1
-    assert [row["video_id"] for row in remaining] == ["fresh"]
+    assert [row["video_id"] for row in remaining] == ["fresh-video"]
 
 
 def test_search_growth_never_crosses_google_trends_comparison_groups(tmp_path):
