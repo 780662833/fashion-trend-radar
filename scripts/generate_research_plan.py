@@ -79,7 +79,7 @@ def build_product_queries(product: dict, market: str, market_terms: str = "") ->
         intents = SNEAKER_INTENTS
     else:
         candidates.extend([
-            ("category_discovery", f'{canonical} {_market_category_term(category, market)}', 2,
+            ("category_discovery", f'{canonical} {_market_category_term(category, product["subcategory"], market)}', 2,
              "market-local category vocabulary"),
         ])
         intents = BAG_INTENTS
