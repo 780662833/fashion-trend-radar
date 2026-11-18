@@ -138,7 +138,7 @@ fashion-radar --db PATH warehouse-refresh --out DIR
 2. TikTok Creative Center：研究员按 US/CA/GB 分别记录趋势、标签和案例视频。
 3. Google Trends：导入按同一查询设置和同一比较组导出的兴趣指数。
 4. Reddit：使用 OAuth API 和合规数据范围；处理删除内容和保留限制。
-5. Instagram/Pinterest：先人工观察或使用获准的数据服务；暂不做非官方全站抓取。
+5. Pinterest：按 docs/PINTEREST_TRENDS_EVIDENCE.md 使用 configs/manual_research/pinterest_keyword_plan.csv 制定 US/CA/GB 研究任务，再通过 pinterest_trends_template.csv 和 scripts/import_source_observations.py 导入人工观察；默认覆盖验收不强制 Pinterest，需显式加入 --required-sources。Instagram：先人工观察或使用获准的数据服务；暂不做非官方全站抓取。
 
 ## 测试
 
