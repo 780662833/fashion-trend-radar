@@ -1,0 +1,5 @@
+product_id,category,subcategory,brand,model_name,canonical_name,style_code,aliases,colorway,material,audience_tag,style_tags,release_date,identity_confidence
+nike-caitlin-1-cave-stone-ih7423-101,sneaker,basketball,Nike,Caitlin 1,Caitlin 1 Cave Stone,IH7423-101,"Caitlin Clark 1;CC1 Cave Stone",Light Orewood Brown/Cave Stone,,unisex,"basketball;signature;neutral_color",,0.98
+nike-kobe-9-em-low-protro-philippines-io6262-600,sneaker,basketball,Nike,Kobe 9 EM Low Protro,Kobe 9 EM Low Protro Philippines,IO6262-600,"Kobe 9 Protro Philippines;Kobe 9 EM Philippines",Laser Crimson/Obsidian,Engineered mesh,unisex,"basketball;signature;heritage_story",2026-11-18,0.99
+coach-soft-empire-carryall-40-cfr36,bag,tote,Coach,Soft Empire Carryall Bag 40,Coach Soft Empire Carryall Bag 40,CFR36,"Soft Empire 40;Empire Carryall 40",Brass/Black,Shiny natural grain leather,unisex,"workwear;carryall;vintage_inspired",,0.99
+cos-trullo-oversized-flap-bag-1361103001,bag,shoulder_bag,COS,Trullo Oversized Flap Bag, COS Trullo Oversized Flap Bag,, "Trullo oversized flap bag;COS Trullo bag",Black,Leather,unisex,"oversized;folded_silhouette;crossbody",,0.93
