@@ -1,0 +1,2 @@
+[console_scripts]
+fashion-radar = fashion_radar.cli:main

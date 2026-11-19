@@ -1,0 +1,221 @@
+{
+  "as_of": "2026-11-18",
+  "stale_after_days": 30,
+  "freshness_cutoff": "2026-10-19",
+  "markets": [
+    "US",
+    "CA",
+    "GB"
+  ],
+  "required_sources": [
+    "tiktok_creative_center",
+    "google_trends_ui"
+  ],
+  "required_sources_ready": false,
+  "required_source_gaps": [
+    {
+      "source_name": "tiktok_creative_center",
+      "markets_not_current": [
+        "US",
+        "CA",
+        "GB"
+      ]
+    },
+    {
+      "source_name": "google_trends_ui",
+      "markets_not_current": [
+        "US",
+        "CA",
+        "GB"
+      ]
+    }
+  ],
+  "source_market_matrix": [
+    {
+      "source_name": "tiktok_creative_center",
+      "market_code": "US",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "tiktok_creative_center",
+      "market_code": "CA",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "tiktok_creative_center",
+      "market_code": "GB",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "google_trends_ui",
+      "market_code": "US",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "google_trends_ui",
+      "market_code": "CA",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "google_trends_ui",
+      "market_code": "GB",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "pinterest_trends_ui",
+      "market_code": "US",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "pinterest_trends_ui",
+      "market_code": "CA",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "pinterest_trends_ui",
+      "market_code": "GB",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "reddit_manual",
+      "market_code": "US",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "reddit_manual",
+      "market_code": "CA",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "reddit_manual",
+      "market_code": "GB",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "instagram_manual",
+      "market_code": "US",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "instagram_manual",
+      "market_code": "CA",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    },
+    {
+      "source_name": "instagram_manual",
+      "market_code": "GB",
+      "status": "missing",
+      "accepted_observations": 0,
+      "real_observations": 0,
+      "synthetic_observations": 0,
+      "product_linked_real_observations": 0,
+      "distinct_products": 0,
+      "latest_real_period_end": null,
+      "latest_real_capture": null
+    }
+  ],
+  "notes": [
+    "Only accepted, non-synthetic source observations count as real coverage.",
+    "YouTube Data API references are stored separately and are not included in this manual-source matrix.",
+    "A current row indicates recent captured evidence, not that the sample is statistically representative."
+  ],
+  "status": "incomplete"
+}

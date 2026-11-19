@@ -1,0 +1,71 @@
+{
+  "status": "clean",
+  "generated_at": "2026-11-18T14:58:15.254543+00:00",
+  "summary": {
+    "task_count": 297,
+    "product_count": 4,
+    "market_count": 3,
+    "source_count": 3,
+    "issue_count": 0,
+    "error_count": 0,
+    "warning_count": 0
+  },
+  "distribution": {
+    "market_source": {
+      "CA / google_trends_ui": 33,
+      "CA / tiktok_creative_center": 33,
+      "CA / youtube_data_api": 33,
+      "GB / google_trends_ui": 33,
+      "GB / tiktok_creative_center": 33,
+      "GB / youtube_data_api": 33,
+      "US / google_trends_ui": 33,
+      "US / tiktok_creative_center": 33,
+      "US / youtube_data_api": 33
+    },
+    "market": {
+      "CA": 99,
+      "GB": 99,
+      "US": 99
+    },
+    "source": {
+      "google_trends_ui": 99,
+      "tiktok_creative_center": 99,
+      "youtube_data_api": 99
+    },
+    "product": {
+      "coach-soft-empire-carryall-40-cfr36": 72,
+      "cos-trullo-oversized-flap-bag-1361103001": 63,
+      "nike-caitlin-1-cave-stone-ih7423-101": 81,
+      "nike-kobe-9-em-low-protro-philippines-io6262-600": 81
+    },
+    "query_type": {
+      "alias": 72,
+      "brand_model": 18,
+      "canonical": 36,
+      "category_discovery": 36,
+      "on_foot": 18,
+      "outfit": 36,
+      "review": 36,
+      "style_code": 27,
+      "what_fits": 18
+    },
+    "product_market": {
+      "coach-soft-empire-carryall-40-cfr36 / CA": 24,
+      "coach-soft-empire-carryall-40-cfr36 / GB": 24,
+      "coach-soft-empire-carryall-40-cfr36 / US": 24,
+      "cos-trullo-oversized-flap-bag-1361103001 / CA": 21,
+      "cos-trullo-oversized-flap-bag-1361103001 / GB": 21,
+      "cos-trullo-oversized-flap-bag-1361103001 / US": 21,
+      "nike-caitlin-1-cave-stone-ih7423-101 / CA": 27,
+      "nike-caitlin-1-cave-stone-ih7423-101 / GB": 27,
+      "nike-caitlin-1-cave-stone-ih7423-101 / US": 27,
+      "nike-kobe-9-em-low-protro-philippines-io6262-600 / CA": 27,
+      "nike-kobe-9-em-low-protro-philippines-io6262-600 / GB": 27,
+      "nike-kobe-9-em-low-protro-philippines-io6262-600 / US": 27
+    }
+  },
+  "suspicious_keywords": [],
+  "duplicate_tasks": [],
+  "alias_issues": [],
+  "issues": []
+}

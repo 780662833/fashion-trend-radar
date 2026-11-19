@@ -1,0 +1,93 @@
+{
+  "status": "ready",
+  "as_of": "2026-11-18",
+  "min_confidence": 0.8,
+  "product_count": 4,
+  "blocker_count": 0,
+  "warning_count": 5,
+  "issues": [
+    {
+      "severity": "warning",
+      "code": "incomplete_market_mapping",
+      "product_ids": [
+        "coach-soft-empire-carryall-40-cfr36"
+      ],
+      "detail": "No active product-market mapping for: CA, GB, US. Baseline queries can still be generated."
+    },
+    {
+      "severity": "warning",
+      "code": "missing_style_code",
+      "product_ids": [
+        "cos-trullo-oversized-flap-bag-1361103001"
+      ],
+      "detail": "No style code; retain a primary official or authorized product reference."
+    },
+    {
+      "severity": "warning",
+      "code": "incomplete_market_mapping",
+      "product_ids": [
+        "cos-trullo-oversized-flap-bag-1361103001"
+      ],
+      "detail": "No active product-market mapping for: CA, GB, US. Baseline queries can still be generated."
+    },
+    {
+      "severity": "warning",
+      "code": "incomplete_market_mapping",
+      "product_ids": [
+        "nike-caitlin-1-cave-stone-ih7423-101"
+      ],
+      "detail": "No active product-market mapping for: CA, GB, US. Baseline queries can still be generated."
+    },
+    {
+      "severity": "warning",
+      "code": "incomplete_market_mapping",
+      "product_ids": [
+        "nike-kobe-9-em-low-protro-philippines-io6262-600"
+      ],
+      "detail": "No active product-market mapping for: CA, GB, US. Baseline queries can still be generated."
+    }
+  ],
+  "products": [
+    {
+      "product_id": "coach-soft-empire-carryall-40-cfr36",
+      "category": "bag",
+      "canonical_name": "Coach Soft Empire Carryall Bag 40",
+      "identity_confidence": 0.99,
+      "evidence_count": 2,
+      "primary_evidence_count": 1,
+      "active_market_mappings": []
+    },
+    {
+      "product_id": "cos-trullo-oversized-flap-bag-1361103001",
+      "category": "bag",
+      "canonical_name": "COS Trullo Oversized Flap Bag",
+      "identity_confidence": 0.93,
+      "evidence_count": 2,
+      "primary_evidence_count": 1,
+      "active_market_mappings": []
+    },
+    {
+      "product_id": "nike-caitlin-1-cave-stone-ih7423-101",
+      "category": "sneaker",
+      "canonical_name": "Caitlin 1 Cave Stone",
+      "identity_confidence": 0.98,
+      "evidence_count": 1,
+      "primary_evidence_count": 1,
+      "active_market_mappings": []
+    },
+    {
+      "product_id": "nike-kobe-9-em-low-protro-philippines-io6262-600",
+      "category": "sneaker",
+      "canonical_name": "Kobe 9 EM Low Protro Philippines",
+      "identity_confidence": 0.99,
+      "evidence_count": 2,
+      "primary_evidence_count": 1,
+      "active_market_mappings": []
+    }
+  ],
+  "notes": [
+    "Evidence references document provenance but are not automatically authenticated by this audit.",
+    "Missing product-market mappings are warnings because the query planner can generate baseline terms for all requested markets.",
+    "A ready catalogue is a prerequisite for research planning, not proof of market demand."
+  ]
+}

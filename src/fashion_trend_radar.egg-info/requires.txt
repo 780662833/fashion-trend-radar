@@ -1,0 +1,14 @@
+pydantic<3,>=2.7
+rapidfuzz<4,>=3.9
+tzdata>=2024.1
+
+[app]
+streamlit<2,>=1.37
+
+[dev]
+pytest<10,>=8
+ruff<1,>=0.6
+
+[warehouse]
+polars<2,>=1.0
+duckdb<2,>=1.0
