@@ -79,7 +79,7 @@ def test_empty_observation_csv_is_not_reported_as_success(tmp_path):
     csv_path.write_text(
         "source_name,observation_type,market_code,product_id,keyword,metric_name,"
         "metric_value,metric_unit,period_start,period_end,comparison_group,source_url,"
-        "supporting_content_url,captured_at,notes\\n",
+        "supporting_content_url,captured_at,notes\n",
         encoding="utf-8",
     )
     result = subprocess.run(
