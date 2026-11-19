@@ -294,8 +294,8 @@ def submit_trend_tasks(
                 conn.execute(
                     """INSERT INTO dataforseo_tasks(
                        task_id,run_id,product_id,market_code,keywords_json,comparison_group,
-                       search_type,request_json,status,submitted_at,cost_usd)
-                       VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                       search_type,date_from,date_to,request_json,status,submitted_at,cost_usd)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
                        ON CONFLICT(task_id) DO NOTHING""",
                     (
                         task_id,
@@ -305,6 +305,8 @@ def submit_trend_tasks(
                         json.dumps(list(group.keywords), ensure_ascii=False),
                         group.comparison_group,
                         group.search_type,
+                        group.date_from,
+                        group.date_to,
                         json.dumps(group.request_payload(build_provider_task_tag(group)),
                                    ensure_ascii=False, sort_keys=True),
                         "submitted",
