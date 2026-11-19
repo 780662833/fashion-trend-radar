@@ -140,11 +140,11 @@ def test_search_snapshots_keep_independent_comparison_groups(tmp_path):
     csv_path = tmp_path / "grouped_search.csv"
     csv_path.write_text(
         "product_id,market_code,keyword,period_start,period_end,interest_index,"
-        "source,captured_at,is_synthetic,comparison_group\\n"
+        "source,captured_at,is_synthetic,comparison_group\n"
         "DEMO-SNEAKER-001,US,kobe shoes,2026-11-01,2026-11-07,20,"
-        "google_trends_ui,2026-11-08T00:00:00Z,false,group_a\\n"
+        "google_trends_ui,2026-11-08T00:00:00Z,false,group_a\n"
         "DEMO-SNEAKER-001,US,kobe shoes,2026-11-01,2026-11-07,80,"
-        "google_trends_ui,2026-11-08T00:00:00Z,false,group_b\\n",
+        "google_trends_ui,2026-11-08T00:00:00Z,false,group_b\n",
         encoding="utf-8",
     )
     imported, errors = import_search(csv_path, db)
