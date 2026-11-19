@@ -24,10 +24,10 @@ def _database_with_product(tmp_path: Path) -> Path:
 def _write_pinterest_csv(path: Path, source_url: str) -> None:
     path.write_text(
         "source_name,observation_type,market_code,product_id,keyword,metric_name,metric_value,"
-        "metric_unit,period_start,period_end,comparison_group,source_url,captured_at\\n"
+        "metric_unit,period_start,period_end,comparison_group,source_url,captured_at\n"
         "pinterest_trends_ui,trend,GB,BAG-001,slouchy shoulder bag,interest_index,68,"
         "index_0_100,2026-10-01,2026-10-31,GB_bags_oct_2026,"
-        f"{source_url},2026-11-16T10:00:00Z\\n",
+        f"{source_url},2026-11-16T10:00:00Z\n",
         encoding="utf-8",
     )
 
