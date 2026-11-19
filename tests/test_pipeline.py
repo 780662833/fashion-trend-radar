@@ -129,3 +129,60 @@ def test_csv_empty_optional_fields_use_defaults_or_nulls(tmp_path):
     assert row["aliases"] == ""
     assert row["release_date"] is None
     assert row["style_code"] is None
+
+
+def test_search_snapshots_keep_independent_comparison_groups(tmp_path):
+    from fashion_radar.importers import import_search
+
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    import_products(ROOT / "examples/products.csv", db)
+    csv_path = tmp_path / "grouped_search.csv"
+    csv_path.write_text(
+        "product_id,market_code,keyword,period_start,period_end,interest_index,"
+        "source,captured_at,is_synthetic,comparison_group\\n"
+        "DEMO-SNEAKER-001,US,kobe shoes,2026-11-01,2026-11-07,20,"
+        "google_trends_ui,2026-11-08T00:00:00Z,false,group_a\\n"
+        "DEMO-SNEAKER-001,US,kobe shoes,2026-11-01,2026-11-07,80,"
+        "google_trends_ui,2026-11-08T00:00:00Z,false,group_b\\n",
+        encoding="utf-8",
+    )
+    imported, errors = import_search(csv_path, db)
+    assert imported == 2
+    assert errors == []
+    with connect(db) as conn:
+        rows = conn.execute(
+            """SELECT interest_index,comparison_group FROM search_snapshots
+               WHERE product_id='DEMO-SNEAKER-001' AND keyword='kobe shoes'
+               ORDER BY comparison_group"""
+        ).fetchall()
+    assert [(row["interest_index"], row["comparison_group"]) for row in rows] == [
+        (20.0, "group_a"),
+        (80.0, "group_b"),
+    ]
+
+
+def test_google_trends_zero_values_are_not_scored_as_zero_search_growth(tmp_path):
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    import_products(ROOT / "examples/products.csv", db)
+    with connect(db) as conn:
+        for period_start, period_end in (
+            ("2026-11-01", "2026-11-07"),
+            ("2026-11-08", "2026-11-14"),
+        ):
+            conn.execute(
+                """INSERT INTO search_snapshots(
+                   product_id,market_code,keyword,period_start,period_end,interest_index,
+                   source,captured_at,is_synthetic,comparison_group)
+                   VALUES('DEMO-SNEAKER-001','US','Kobe 9',?,?,0,
+                          'google_trends_ui','2026-11-15T00:00:00Z',0,'us_kobe9_web_14d')""",
+                (period_start, period_end),
+            )
+        results = score_all(conn, date(2026, 11, 16))
+    result = next(
+        item for item in results
+        if item.product_id == "DEMO-SNEAKER-001" and item.market_code == "US"
+    )
+    assert result.component_scores["demand_evidence"] is None
+    assert any("0 值被排除" in item for item in result.limitations)
