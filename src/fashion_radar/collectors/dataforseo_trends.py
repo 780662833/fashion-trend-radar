@@ -367,6 +367,7 @@ def parse_trend_task_result(
     results = task.get("result") or []
     rows: list[dict] = []
     missing_count = 0
+    graph_count = 0
     check_url = ""
     capture_time = captured_at or datetime.now(timezone.utc).isoformat()
     for result in results:
@@ -375,6 +376,7 @@ def parse_trend_task_result(
         for item in result.get("items") or []:
             if item.get("type") != "google_trends_graph":
                 continue
+            graph_count += 1
             item_keywords = item.get("keywords") or result_keywords
             for point in item.get("data") or []:
                 values = point.get("values")
@@ -436,6 +438,10 @@ def parse_trend_task_result(
                             "is_synthetic": 0,
                         }
                     )
+    if graph_count == 0:
+        raise DataForSEOError(
+            f"DataForSEO task {task_id} completed without a Google Trends graph item"
+        )
     return rows, missing_count
 
 
