@@ -7,7 +7,7 @@ import json
 import os
 import sqlite3
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -133,7 +133,7 @@ def load_query_plan(path: str | Path, db_path: str | Path) -> list[TrendQueryGro
     if not input_path.is_file():
         raise FileNotFoundError(f"DataForSEO query plan does not exist: {input_path.resolve()}")
 
-    grouped: dict[tuple[str, str, str, str, str, str], list[str]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str, str, str, str, str], list[str]] = defaultdict(list)
     seen: set[tuple[str, str, str, str, str, str, str]] = set()
     with input_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
