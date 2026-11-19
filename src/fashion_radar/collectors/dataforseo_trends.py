@@ -261,16 +261,17 @@ def submit_trend_tasks(
             },
         )
         for group in groups:
-            request_id = reserve_api_request(
-                conn,
-                run_id,
-                "dataforseo",
-                "google_trends.explore.task_post",
-                "billable_task_posts",
-                budget,
-                1,
-            )
+            request_id = None
             try:
+                request_id = reserve_api_request(
+                    conn,
+                    run_id,
+                    "dataforseo",
+                    "google_trends.explore.task_post",
+                    "billable_task_posts",
+                    budget,
+                    1,
+                )
                 response = api.post(
                     POST_ENDPOINT,
                     [group.request_payload(build_provider_task_tag(group))],
@@ -293,8 +294,8 @@ def submit_trend_tasks(
                 conn.execute(
                     """INSERT INTO dataforseo_tasks(
                        task_id,run_id,product_id,market_code,keywords_json,comparison_group,
-                       request_json,status,submitted_at,cost_usd)
-                       VALUES(?,?,?,?,?,?,?,?,?,?)
+                       search_type,request_json,status,submitted_at,cost_usd)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?)
                        ON CONFLICT(task_id) DO NOTHING""",
                     (
                         task_id,
@@ -303,6 +304,7 @@ def submit_trend_tasks(
                         group.market_code,
                         json.dumps(list(group.keywords), ensure_ascii=False),
                         group.comparison_group,
+                        group.search_type,
                         json.dumps(group.request_payload(build_provider_task_tag(group)),
                                    ensure_ascii=False, sort_keys=True),
                         "submitted",
@@ -316,7 +318,8 @@ def submit_trend_tasks(
                      "keywords": list(group.keywords), "cost_usd": cost}
                 )
             except Exception as exc:
-                finish_api_request(conn, request_id, False, type(exc).__name__)
+                if request_id is not None:
+                    finish_api_request(conn, request_id, False, type(exc).__name__)
                 errors.append(f"{group.comparison_group}: {exc}")
                 if isinstance(exc, QuotaBudgetExceeded):
                     break
@@ -356,6 +359,7 @@ def parse_trend_task_result(
     rows: list[dict] = []
     missing_count = 0
     check_url = ""
+    capture_time = captured_at or datetime.now(timezone.utc).isoformat()
     for result in results:
         check_url = result.get("check_url") or check_url
         result_keywords = result.get("keywords") or keywords
@@ -395,6 +399,14 @@ def parse_trend_task_result(
                             "possible_below_reporting_threshold=true; provider defines 0 as "
                             "insufficient data for the term"
                         )
+                    result_url = check_url or (
+                        "https://trends.google.com/trends/explore?"
+                        + urlencode({
+                            "geo": market,
+                            "date": f"{task_metadata['date_from']} {task_metadata['date_to']}",
+                            "q": ",".join(keywords),
+                        })
+                    )
                     rows.append(
                         {
                             "source_name": SOURCE_NAME,
@@ -408,8 +420,8 @@ def parse_trend_task_result(
                             "period_start": period_start,
                             "period_end": period_end,
                             "comparison_group": comparison_group,
-                            "source_url": check_url,
-                            "captured_at": captured_at or datetime.now(timezone.utc).isoformat(),
+                            "source_url": result_url,
+                            "captured_at": capture_time,
                             "collection_method": "authorized_provider_api",
                             "notes": "; ".join(note_parts),
                             "is_synthetic": 0,
