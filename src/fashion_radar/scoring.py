@@ -78,19 +78,33 @@ def _score_one(conn: sqlite3.Connection, product_id: str, market: str, score_dat
         comparison_group = row["comparison_group"] if "comparison_group" in row.keys() else ""
         key = (row["keyword"], row["source"], comparison_group)
         search_by_comparison.setdefault(key, []).append(row)
-    search_growths = [
-        _scaled_log_growth(float(rows[0]["interest_index"]), float(rows[-1]["interest_index"]))
-        for rows in search_by_comparison.values()
-        if len(rows) >= 2
-    ]
+    search_growths: list[float] = []
+    zero_points_excluded = 0
+    for rows in search_by_comparison.values():
+        # Google Trends documents a displayed 0 as insufficient data, not a
+        # measured zero-search count. Exclude it from growth baselines.
+        usable = [row for row in rows if float(row["interest_index"]) > 0]
+        zero_points_excluded += len(rows) - len(usable)
+        if len(usable) >= 2:
+            search_growths.append(
+                _scaled_log_growth(
+                    float(usable[0]["interest_index"]),
+                    float(usable[-1]["interest_index"]),
+                )
+            )
     if search_growths:
         search_score = mean(search_growths)
         demand_parts.append((search_score, 0.40))
         reasons.append(f"搜索趋势覆盖 {len(search_growths)} 个可比较关键词；记录共 {len(search)} 个。")
     elif search:
-        limitations.append("搜索趋势只有单期记录或分散在不同关键词，不能计算增长。")
+        limitations.append("搜索趋势只有单期记录（排除低于报告阈值的 0 值后）或分散在不同关键词，不能计算增长。")
     else:
         limitations.append("缺少搜索趋势数据。")
+    if zero_points_excluded:
+        limitations.append(
+            f"有 {zero_points_excluded} 个 Google Trends 0 值被排除在增长计算之外；"
+            "0 代表数据不足，不被解释为确定的零搜索。"
+        )
 
     creators = {s["creator_key"] for s in signals if s["creator_key"]}
     if creators:

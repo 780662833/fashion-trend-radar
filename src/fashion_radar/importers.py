@@ -117,12 +117,14 @@ def import_search(path: str | Path, db_path: str | Path) -> tuple[int, list[str]
         captured = item.captured_at or datetime.now(timezone.utc)
         conn.execute(
             """INSERT INTO search_snapshots(product_id,market_code,keyword,period_start,period_end,
-               interest_index,source,captured_at,is_synthetic) VALUES(?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(product_id,market_code,keyword,period_start,period_end,source) DO UPDATE SET
-               interest_index=excluded.interest_index,captured_at=excluded.captured_at,
+               interest_index,source,captured_at,is_synthetic,comparison_group)
+               VALUES(?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(product_id,market_code,keyword,period_start,period_end,source,comparison_group)
+               DO UPDATE SET interest_index=excluded.interest_index,captured_at=excluded.captured_at,
                is_synthetic=excluded.is_synthetic""",
             (item.product_id,item.market_code,item.keyword,item.period_start.isoformat(),item.period_end.isoformat(),
-             item.interest_index,item.source,captured.isoformat(),int(item.is_synthetic)),
+             item.interest_index,item.source,captured.isoformat(),int(item.is_synthetic),
+             item.comparison_group),
         )
     return _import(path, SearchSnapshotInput, save, db_path)
 

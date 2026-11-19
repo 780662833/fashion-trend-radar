@@ -15,6 +15,7 @@ from fashion_radar.source_store import ensure_source_tables
 ALLOWED_SOURCES = {
     "tiktok_creative_center",
     "google_trends_ui",
+    "dataforseo_google_trends",
     "pinterest_trends_ui",
     "reddit_manual",
     "instagram_manual",
@@ -25,6 +26,7 @@ MARKETS = {"US", "CA", "GB"}
 SOURCE_DOMAINS = {
     "tiktok_creative_center": {"ads.tiktok.com"},
     "google_trends_ui": {"trends.google.com"},
+    "dataforseo_google_trends": {"trends.google.com"},
     "pinterest_trends_ui": {"trends.pinterest.com", "pinterest.com"},
     "reddit_manual": {"reddit.com"},
     "instagram_manual": {"instagram.com"},
@@ -81,7 +83,7 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         raise ValueError(f"row {line}: period_end is earlier than period_start")
     if captured.tzinfo is None:
         captured = captured.replace(tzinfo=timezone.utc)
-    if source == "google_trends_ui":
+    if source in {"google_trends_ui", "dataforseo_google_trends"}:
         if metric_name != "interest_index" or metric_unit != "index_0_100":
             raise ValueError(f"row {line}: Google Trends must use interest_index/index_0_100")
         if value > 100:
@@ -103,7 +105,10 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         "source_url": source_url,
         "supporting_content_url": supporting_url,
         "captured_at": captured.astimezone(timezone.utc).isoformat(),
-        "collection_method": "manual_capture",
+        "collection_method": (
+            "authorized_provider_import"
+            if source == "dataforseo_google_trends" else "manual_capture"
+        ),
         "notes": (row.get("notes") or "").strip(),
         "is_synthetic": 0,
     }
@@ -183,14 +188,15 @@ def main() -> int:
                             "captured_at","collection_method","notes",
                         )),
                     )
-                    if item["source_name"] == "google_trends_ui" and product_id:
+                    if item["source_name"] in {"google_trends_ui", "dataforseo_google_trends"} and product_id:
                         conn.execute(
                             """INSERT INTO search_snapshots(product_id,market_code,keyword,period_start,
                                period_end,interest_index,source,captured_at,is_synthetic,comparison_group)
                                VALUES(?,?,?,?,?,?,?,?,0,?)
-                               ON CONFLICT(product_id,market_code,keyword,period_start,period_end,source)
+                               ON CONFLICT(product_id,market_code,keyword,period_start,period_end,source,
+                                           comparison_group)
                                DO UPDATE SET interest_index=excluded.interest_index,
-                               captured_at=excluded.captured_at,comparison_group=excluded.comparison_group""",
+                               captured_at=excluded.captured_at,is_synthetic=excluded.is_synthetic""",
                             (product_id,item["market_code"],item["keyword"],item["period_start"],
                              item["period_end"],item["metric_value"],"google_trends_ui",
                              item["captured_at"],item["comparison_group"]),

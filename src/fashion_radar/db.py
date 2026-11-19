@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS search_snapshots (
     interest_index REAL NOT NULL CHECK(interest_index >= 0 AND interest_index <= 100),
     source TEXT NOT NULL,
     captured_at TEXT NOT NULL,
-    is_synthetic INTEGER NOT NULL DEFAULT 0
+    is_synthetic INTEGER NOT NULL DEFAULT 0,
+    comparison_group TEXT NOT NULL DEFAULT ''
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_search_unique ON search_snapshots(product_id,market_code,keyword,period_start,period_end,source);
 CREATE INDEX IF NOT EXISTS idx_search_product_market ON search_snapshots(product_id, market_code, period_end);
 CREATE TABLE IF NOT EXISTS audience_insights (
     insight_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,9 +186,27 @@ def initialize(db_path: str | Path) -> None:
         ("Reddit Data API", "community_discussion", "reddit", "oauth_api", "Use OAuth, comply with API terms, and honor deletion requirements."),
         ("Instagram", "visual_trend", "instagram", "manual_or_licensed_provider", "No unofficial scraping in the first release."),
         ("Pinterest Trends", "visual_trend", "pinterest", "manual_or_approved_api", "API availability may be restricted; manual observation is supported."),
+        ("DataForSEO Google Trends", "search_interest", "google_trends", "authorized_provider_api", "Third-party Google Trends provider; preserve query group, cost metadata and source check URL."),
+        ("Exolyt TikTok Analytics", "social_content", "tiktok", "authorized_provider_export", "Use vendor CSV/Sheets exports; do not assume an undocumented public API."),
+        ("Public brand and sneaker news pages", "product_research", "web", "scrapy_allowlisted_public_pages", "Only crawl explicitly allowlisted public URLs; obey robots.txt and site terms."),
     ]
     with connect(db_path) as conn:
         conn.executescript(SCHEMA)
+        search_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(search_snapshots)")
+        }
+        if "comparison_group" not in search_columns:
+            conn.execute(
+                "ALTER TABLE search_snapshots ADD COLUMN comparison_group TEXT NOT NULL DEFAULT ''"
+            )
+        # A comparison group is part of the index identity. Without it, importing
+        # a second independently-normalized Trends request overwrites the first.
+        conn.execute("DROP INDEX IF EXISTS idx_search_unique")
+        conn.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS idx_search_unique_v2
+               ON search_snapshots(product_id,market_code,keyword,period_start,period_end,
+                                   source,comparison_group)"""
+        )
         conn.executemany(
             "INSERT OR IGNORE INTO sources(source_name,source_type,platform,access_method,authorization_note) VALUES(?,?,?,?,?)",
             source_rows,
