@@ -102,6 +102,7 @@ class TrendQueryGroup:
     date_to: str
     search_type: str
     language_code: str
+    comparison_set: str
     comparison_group: str
 
     def request_payload(self, tag: str) -> dict:
@@ -118,11 +119,13 @@ class TrendQueryGroup:
 
 
 def _comparison_group(
-    market: str, search_type: str, date_from: str, date_to: str, keywords: tuple[str, ...]
+    market: str, search_type: str, date_from: str, date_to: str,
+    comparison_set: str, keywords: tuple[str, ...]
 ) -> str:
     normalized = "|".join(keyword.casefold() for keyword in keywords)
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
-    return f"dataforseo_{market}_{search_type}_{date_from}_{date_to}_{digest}"
+    safe_set = "".join(ch if ch.isalnum() else "_" for ch in comparison_set.casefold())[:24]
+    return f"dataforseo_{market}_{search_type}_{date_from}_{date_to}_{safe_set}_{digest}"
 
 
 def load_query_plan(path: str | Path, db_path: str | Path) -> list[TrendQueryGroup]:
@@ -166,7 +169,10 @@ def load_query_plan(path: str | Path, db_path: str | Path) -> list[TrendQueryGro
                 raise ValueError(f"row {line}: keyword violates DataForSEO keyword limits")
             if not language or len(language) > 8:
                 raise ValueError(f"row {line}: invalid language_code")
-            key = (product_id, market, date_from, date_to, search_type, language)
+            comparison_set = (row.get("comparison_set") or "default").strip() or "default"
+            key = (
+                product_id, market, date_from, date_to, search_type, language, comparison_set
+            )
             row_key = (*key, keyword.casefold())
             if row_key in seen:
                 continue
@@ -186,7 +192,7 @@ def load_query_plan(path: str | Path, db_path: str | Path) -> list[TrendQueryGro
 
     groups: list[TrendQueryGroup] = []
     for key, keywords in sorted(grouped.items()):
-        product_id, market, date_from, date_to, search_type, language = key
+        product_id, market, date_from, date_to, search_type, language, comparison_set = key
         for offset in range(0, len(keywords), 5):
             batch = tuple(keywords[offset:offset + 5])
             groups.append(
@@ -198,8 +204,9 @@ def load_query_plan(path: str | Path, db_path: str | Path) -> list[TrendQueryGro
                     date_to=date_to,
                     search_type=search_type,
                     language_code=language,
+                    comparison_set=comparison_set,
                     comparison_group=_comparison_group(
-                        market, search_type, date_from, date_to, batch
+                        market, search_type, date_from, date_to, comparison_set, batch
                     ),
                 )
             )
