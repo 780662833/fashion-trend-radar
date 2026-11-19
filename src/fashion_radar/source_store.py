@@ -40,6 +40,7 @@ def ensure_source_tables(conn) -> None:
             market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
             keywords_json TEXT NOT NULL,
             comparison_group TEXT NOT NULL,
+            search_type TEXT NOT NULL DEFAULT 'web',
             request_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'submitted',
             submitted_at TEXT NOT NULL,
