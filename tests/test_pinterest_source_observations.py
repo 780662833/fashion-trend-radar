@@ -70,3 +70,29 @@ def test_pinterest_observation_rejects_non_pinterest_source_url(tmp_path):
     with connect(db) as conn:
         count = conn.execute("SELECT COUNT(*) FROM source_observations").fetchone()[0]
     assert count == 0
+
+
+
+def test_empty_observation_csv_is_not_reported_as_success(tmp_path):
+    db = _database_with_product(tmp_path)
+    csv_path = tmp_path / "empty.csv"
+    csv_path.write_text(
+        "source_name,observation_type,market_code,product_id,keyword,metric_name,"
+        "metric_value,metric_unit,period_start,period_end,comparison_group,source_url,"
+        "supporting_content_url,captured_at,notes\\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/import_source_observations.py"),
+         "--db", str(db), "--file", str(csv_path)],
+        capture_output=True, text=True, check=False, cwd=ROOT,
+    )
+    payload = json.loads(result.stdout)
+    assert result.returncode == 2
+    assert payload["status"] == "failed"
+    assert payload["rows_read"] == 0
+    assert payload["imported_or_updated"] == 0
+    assert payload["database"] == str(db.resolve())
+    with connect(db) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM source_observations").fetchone()[0]
+    assert count == 0
