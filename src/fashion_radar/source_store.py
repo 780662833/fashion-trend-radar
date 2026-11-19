@@ -41,6 +41,8 @@ def ensure_source_tables(conn) -> None:
             keywords_json TEXT NOT NULL,
             comparison_group TEXT NOT NULL,
             search_type TEXT NOT NULL DEFAULT 'web',
+            date_from TEXT NOT NULL,
+            date_to TEXT NOT NULL,
             request_json TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'submitted',
             submitted_at TEXT NOT NULL,
