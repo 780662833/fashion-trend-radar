@@ -97,7 +97,7 @@ def _score_one(conn: sqlite3.Connection, product_id: str, market: str, score_dat
         demand_parts.append((search_score, 0.40))
         reasons.append(f"搜索趋势覆盖 {len(search_growths)} 个可比较关键词；记录共 {len(search)} 个。")
     elif search:
-        limitations.append("搜索趋势只有单期有效记录或分散在不同关键词，不能计算增长。")
+        limitations.append("搜索趋势只有单期记录（排除低于报告阈值的 0 值后）或分散在不同关键词，不能计算增长。")
     else:
         limitations.append("缺少搜索趋势数据。")
     if zero_points_excluded:
