@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 
 from fashion_radar.collectors.dataforseo_trends import (
     fetch_trend_task_results,
