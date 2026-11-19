@@ -117,10 +117,26 @@ def main() -> int:
     parser.add_argument("--file", required=True)
     args = parser.parse_args()
 
+    input_path = Path(args.file)
+    database_path = str(Path(args.db).resolve())
+    input_file = str(input_path.resolve())
+    if not input_path.is_file():
+        print(json.dumps({
+            "status": "failed",
+            "database": database_path,
+            "input_file": input_file,
+            "rows_read": 0,
+            "imported_or_updated": 0,
+            "error_count": 1,
+            "errors": [f"CSV file does not exist: {input_file}"],
+        }, ensure_ascii=False, indent=2))
+        return 2
+
     initialize(args.db)
     imported = 0
+    rows_read = 0
     errors: list[str] = []
-    with Path(args.file).open("r", encoding="utf-8-sig", newline="") as handle:
+    with input_path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         required = {
             "source_name", "market_code", "keyword", "metric_name", "metric_value",
@@ -133,6 +149,7 @@ def main() -> int:
         with connect(args.db) as conn:
             ensure_source_tables(conn)
             for line, row in enumerate(reader, start=2):
+                rows_read += 1
                 try:
                     item = _parse_row(row, line)
                     product_id = item["product_id"]
@@ -181,8 +198,25 @@ def main() -> int:
                     imported += 1
                 except (ValueError, KeyError) as exc:
                     errors.append(str(exc))
+    if rows_read == 0:
+        print(json.dumps({
+            "status": "failed",
+            "database": database_path,
+            "input_file": input_file,
+            "rows_read": 0,
+            "imported_or_updated": 0,
+            "error_count": 1,
+            "errors": [
+                "CSV contains a header but no data rows; add at least one real observation before importing."
+            ],
+        }, ensure_ascii=False, indent=2))
+        return 2
+
     print(json.dumps({
         "status": "success" if not errors else "partial",
+        "database": database_path,
+        "input_file": input_file,
+        "rows_read": rows_read,
         "imported_or_updated": imported,
         "error_count": len(errors),
         "errors": errors[:50],
