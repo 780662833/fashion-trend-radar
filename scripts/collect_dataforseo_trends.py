@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 
 from fashion_radar.collectors.dataforseo_trends import (
     load_query_plan,
