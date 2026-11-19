@@ -33,6 +33,24 @@ def ensure_source_tables(conn) -> None:
             metadata_json TEXT NOT NULL DEFAULT '{}'
         );
         CREATE INDEX IF NOT EXISTS idx_source_runs_source_time ON source_runs(source_name, started_at);
+        CREATE TABLE IF NOT EXISTS dataforseo_tasks (
+            task_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES source_runs(run_id) ON DELETE CASCADE,
+            product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+            market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
+            keywords_json TEXT NOT NULL,
+            comparison_group TEXT NOT NULL,
+            request_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'submitted',
+            submitted_at TEXT NOT NULL,
+            fetched_at TEXT,
+            result_points INTEGER NOT NULL DEFAULT 0,
+            missing_points INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL,
+            error_message TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_dataforseo_tasks_run_status
+            ON dataforseo_tasks(run_id,status,submitted_at);
         CREATE TABLE IF NOT EXISTS api_request_log (
             request_id INTEGER PRIMARY KEY AUTOINCREMENT,
             run_id TEXT NOT NULL REFERENCES source_runs(run_id) ON DELETE CASCADE,
