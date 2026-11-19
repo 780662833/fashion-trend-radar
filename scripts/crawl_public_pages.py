@@ -8,6 +8,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+BLOCKED_SOCIAL_DOMAINS = {
+    "tiktok.com", "instagram.com", "facebook.com", "youtube.com",
+}
+
+
 def load_seeds(path: str | Path) -> list[dict[str, str]]:
     seed_path = Path(path)
     if not seed_path.is_file():
@@ -31,6 +36,13 @@ def load_seeds(path: str | Path) -> list[dict[str, str]]:
             if host != domain and not host.endswith("." + domain):
                 raise ValueError(
                     f"row {line}: source host {host!r} is outside allowlisted domain {domain!r}"
+                )
+            if any(
+                domain == blocked or domain.endswith("." + blocked)
+                for blocked in BLOCKED_SOCIAL_DOMAINS
+            ):
+                raise ValueError(
+                    f"row {line}: social-platform crawling is not supported; use authorized APIs"
                 )
             market = row.get("market_code", "").upper()
             if market and market not in {"US", "CA", "GB"}:
