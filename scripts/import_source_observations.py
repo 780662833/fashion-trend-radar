@@ -105,7 +105,10 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         "source_url": source_url,
         "supporting_content_url": supporting_url,
         "captured_at": captured.astimezone(timezone.utc).isoformat(),
-        "collection_method": "manual_capture",
+        "collection_method": (
+            "authorized_provider_import"
+            if source == "dataforseo_google_trends" else "manual_capture"
+        ),
         "notes": (row.get("notes") or "").strip(),
         "is_synthetic": 0,
     }
