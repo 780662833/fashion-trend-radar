@@ -530,16 +530,17 @@ def fetch_trend_task_results(
         result_fetch_budget = int(os.getenv("DATAFORSEO_DAILY_RESULT_FETCH_BUDGET", "2000"))
         for metadata in tasks:
             touched_runs.add(metadata["run_id"])
-            request_id = reserve_api_request(
-                conn,
-                metadata["run_id"],
-                "dataforseo",
-                "google_trends.explore.task_get",
-                "free_result_fetches",
-                result_fetch_budget,
-                1,
-            )
+            request_id = None
             try:
+                request_id = reserve_api_request(
+                    conn,
+                    metadata["run_id"],
+                    "dataforseo",
+                    "google_trends.explore.task_get",
+                    "free_result_fetches",
+                    result_fetch_budget,
+                    1,
+                )
                 endpoint = f"{GET_ENDPOINT}/{metadata['task_id']}"
                 response = api.get(endpoint)
                 _assert_provider_ok(response, "task_get")
@@ -578,7 +579,11 @@ def fetch_trend_task_results(
                 missing_total += missing
                 completed += 1
             except Exception as exc:
-                finish_api_request(conn, request_id, False, type(exc).__name__)
+                if request_id is not None:
+                    finish_api_request(conn, request_id, False, type(exc).__name__)
+                if isinstance(exc, QuotaBudgetExceeded):
+                    pending.append(metadata["task_id"])
+                    continue
                 conn.execute(
                     "UPDATE dataforseo_tasks SET status='failed',error_message=? WHERE task_id=?",
                     (str(exc)[:500], metadata["task_id"]),
@@ -606,8 +611,14 @@ def fetch_trend_task_results(
                     touched_run,
                 ),
             )
+    final_status = (
+        "not_found" if not tasks else
+        "pending_results" if pending else
+        "partial" if failed else
+        "success"
+    )
     return {
-        "status": "pending_results" if pending else ("partial" if failed else "success"),
+        "status": final_status,
         "completed_tasks": completed,
         "observations_saved": saved_total,
         "missing_points": missing_total,
