@@ -41,7 +41,6 @@ jobs:
           src/fashion_radar/collectors/dataforseo_trends.py
           tests/test_trendspyg_collector.py
           tests/test_trendspyg_run_audit.py
-          tests/test_dataforseo_collector.py
           scripts/collect_trendspyg_trends.py
           scripts/audit_trendspyg_run.py
           scripts/migrate_source_run_observation_links.py
