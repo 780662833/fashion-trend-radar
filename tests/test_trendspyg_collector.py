@@ -38,6 +38,7 @@ def _fake_upstream_rate_limit_error(method: str, endpoint: str) -> RuntimeError:
     )
     namespace = {
         "__name__": "trendspyg.explore._http",
+        "__builtins__": __builtins__,
         "_diagnostic_method": method,
         "_diagnostic_url": "https://trends.google.com" + endpoint,
         "_diagnostic_response": response,
