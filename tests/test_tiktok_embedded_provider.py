@@ -179,4 +179,32 @@ def test_pinned_dtk_client_constructs_offline_on_supported_python():
     client = DTKEmbeddedClient(max_requests_per_run=1)
     assert client.identity_mode == "anonymous_guest_no_cookies"
     assert client.requests_made == 0
-    asyncio.run(client.aclose())
+
+    async def sign_one_request_without_network():
+        try:
+            profile = client._adapter.profile_for(client._fingerprint)
+            platform_request = client._adapter.build_request(
+                modules["CONTENT_DETAIL"],
+                profile=profile,
+                item_id="7450000000000000001",
+            )
+            signing_request = modules["SigningRequestSpec"](
+                method=platform_request["method"],
+                url=platform_request["url"],
+                params=platform_request.get("params"),
+                headers=platform_request.get("headers"),
+                body=platform_request.get("body"),
+            )
+            signed = await client._signer.sign(
+                signing_request,
+                client._signing_fingerprint,
+                modules["SigningSession"](cookies={}),
+            )
+            assert signed.signer == "native"
+            assert "X-Dynosaur=" in signed.query
+            assert "X-Gnarly=" in signed.query
+            assert "msToken=" not in signed.query or "msToken=&" in signed.query
+        finally:
+            await client.aclose()
+
+    asyncio.run(sign_one_request_without_network())
