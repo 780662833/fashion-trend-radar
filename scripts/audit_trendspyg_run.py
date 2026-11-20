@@ -275,10 +275,14 @@ def audit_run(
     limitations = []
     if association_method == "legacy_time_window_unverified":
         limitations.extend([
-            "No direct run-to-observation links exist for this run. Rows selected by "
-            "source_name and captured_at are diagnostic candidates only.",
-            "Time-window candidates are not proof of run ownership and may include "
-            "observations from another overlapping run.",
+            (
+                "No direct run-to-observation links exist for this run. Rows selected by "
+                "source_name and captured_at are diagnostic candidates only."
+            ),
+            (
+                "Time-window candidates are not proof of run ownership and may include "
+                "observations from another overlapping run."
+            ),
         ])
     if "search_snapshots" in tables:
         limitations.append(
