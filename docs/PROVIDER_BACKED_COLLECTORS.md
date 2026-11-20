@@ -160,3 +160,10 @@ This is important for Google Trends: indices from unrelated comparison groups mu
 | TikTok Display/Discovery API | Not implemented here | TikTok developer-app approvals, OAuth scopes, Discovery account entitlement |
 
 Do not start the full 297-task batch until the Kobe 9 / US DataForSEO task result has been fetched, Exolyt's actual export format has been inspected, and the public-page seed policy has been reviewed. No source should be represented as live-validated merely because its code exists.
+
+
+## 6. Experimental open-source Google Trends path: trendspyg
+
+An optional, non-official public-web provider is available through the pinned `trendspyg==1.9.0` package. It is not a Google API and is not an exact replacement for DataForSEO. It is disabled by default, uses HTTP only without cookies or browser automation, and stops after any upstream failure. Default controls are five requests per Pacific Time day and 15 seconds between requests.
+
+Setup, dry-run, explicit execution, comparison-scale rules, limitations, storage behavior and current Terms of Service review requirements are documented in [TRENDSPYG_PROVIDER.md](TRENDSPYG_PROVIDER.md). Do not describe the provider as live-validated based only on offline tests.
