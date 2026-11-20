@@ -100,6 +100,16 @@ def ensure_source_tables(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_source_observations_market_period
             ON source_observations(market_code, period_end);
+        CREATE TABLE IF NOT EXISTS source_run_observations (
+            run_id TEXT NOT NULL
+                REFERENCES source_runs(run_id) ON DELETE CASCADE,
+            observation_id TEXT NOT NULL
+                REFERENCES source_observations(observation_id) ON DELETE CASCADE,
+            linked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(run_id, observation_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_source_run_observations_observation
+            ON source_run_observations(observation_id);
         CREATE TABLE IF NOT EXISTS product_evidence (
             evidence_id TEXT PRIMARY KEY,
             product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
@@ -157,6 +167,17 @@ def ensure_source_tables(conn) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_source_observations_product_market "
         "ON source_observations(product_id, market_code, period_end)"
+    )
+
+
+def link_source_run_observation(
+    conn, run_id: str, observation_id: str
+) -> None:
+    """Idempotently link an immutable run to an observation it saved or refreshed."""
+    conn.execute(
+        """INSERT OR IGNORE INTO source_run_observations(run_id, observation_id)
+           VALUES(?, ?)""",
+        (run_id, observation_id),
     )
 
 
