@@ -23,7 +23,6 @@ from .dataforseo_trends import TrendQueryGroup, load_query_plan
 
 SOURCE_NAME = "trendspyg_google_trends"
 PROVIDER = "trendspyg"
-MARKETS = {"US", "CA", "GB"}
 
 
 class TrendspygError(RuntimeError):
@@ -47,6 +46,9 @@ class TrendspygClient:
                 ) from exc
             self._module = trendspyg
         return self._module
+
+    def ensure_available(self) -> None:
+        self._api()
 
     def fetch_group(self, group: TrendQueryGroup) -> list[dict]:
         api = self._api()
@@ -249,6 +251,13 @@ def collect_trendspyg_trends(
             "trendspyg provider supports Google web search only; unsupported search_type: "
             + ", ".join(unsupported)
         )
+    if any(
+        len(group.keywords) > 1 and any("," in keyword for keyword in group.keywords)
+        for group in groups
+    ):
+        raise ValueError(
+            "trendspyg comparison cannot safely represent keywords containing commas"
+        )
     budget = max_requests if max_requests is not None else int(
         os.getenv("TRENDSPYG_DAILY_REQUEST_BUDGET", "5")
     )
@@ -265,14 +274,31 @@ def collect_trendspyg_trends(
     if interval < 0:
         raise ValueError("TRENDSPYG_MIN_REQUEST_INTERVAL_SECONDS must be >= 0")
     api = client or TrendspygClient()
+    if isinstance(api, TrendspygClient):
+        api.ensure_available()
+
     run_id = str(uuid4())
     saved_total = 0
     missing_total = 0
     points_seen = 0
+    requests_completed = 0
     errors: list[str] = []
     attempted_at = 0.0
     with connect(db_path) as conn:
         ensure_source_tables(conn)
+        conn.execute(
+            """INSERT OR IGNORE INTO sources(
+               source_name,source_type,platform,access_method,authorization_note)
+               VALUES(?,?,?,?,?)""",
+            (
+                SOURCE_NAME,
+                "search_interest",
+                "google_trends",
+                "non_official_public_web_library",
+                "Experimental opt-in only; not an official Google API; no login cookies, "
+                "browser fallback, retries or access-control circumvention.",
+            ),
+        )
         start_source_run(
             conn,
             run_id,
@@ -316,6 +342,7 @@ def collect_trendspyg_trends(
                 saved_total += saved
                 missing_total += missing
                 points_seen += len(points)
+                requests_completed += 1
             except QuotaBudgetExceeded as exc:
                 errors.append(str(exc))
                 break
@@ -336,7 +363,7 @@ def collect_trendspyg_trends(
             metadata={
                 "provider": "trendspyg",
                 "requests_planned": len(groups),
-                "requests_completed": len(groups) - len(errors),
+                "requests_completed": requests_completed,
                 "observations_saved": saved_total,
                 "missing_points": missing_total,
             },
@@ -345,6 +372,7 @@ def collect_trendspyg_trends(
         "status": status,
         "run_id": run_id,
         "planned_requests": len(groups),
+        "requests_completed": requests_completed,
         "points_seen": points_seen,
         "observations_saved": saved_total,
         "missing_points": missing_total,
