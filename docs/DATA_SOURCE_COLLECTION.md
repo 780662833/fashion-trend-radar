@@ -2,7 +2,7 @@
 
 Updated: 2026-11-20
 
-This document distinguishes working collection paths from manual research and unavailable/unapproved integrations. Do not describe a source as automated until the connector has been implemented and run against an authorized credential.
+This document distinguishes working collection paths from manual research and unavailable/unapproved integrations. Do not describe a source as automated until the connector has been implemented and run against an authorized credential. An optional non-official trendspyg public-web path is explicitly experimental and is not described as an official Google API.
 
 ## Source status
 
@@ -70,7 +70,7 @@ To explicitly test the API credential with one read-only API request, add --prob
 ## YouTube API data retention
 
 YouTube API Data is treated separately from first-party/manual observations:
-- Individual video references only; no product-level aggregation or cross-platform scoring from YouTube API Data.
+- Individual video references only; no product-level aggregation or cross-channel scoring from YouTube API Data.
 - No audiovisual content is downloaded or cached.
 - Public video metadata and non-authorized statistics are set to expire 30 days after collection.
 - Run the scheduled/manual purge script regularly: python scripts/purge_expired_youtube_data.py --db data/registry.sqlite --apply
@@ -95,14 +95,18 @@ A trend-page aggregate is stored as a source_observation, not fabricated into a 
 
 ## Google Trends capture procedure
 
-For each market:
-1. Use the same date range and search type for all terms in a comparison.
+Manual UI export remains the default acceptance path:
+1. For each market, use the same date range and search type for all terms in a comparison.
 2. Keep the comparison group stable and name it, e.g. US_2026Q4_sneaker_terms_web_90d.
 3. Export the CSV from Trends and capture its source URL and timestamp.
 4. Record the index as interest_index with unit index_0_100.
 5. Do not compare raw 0-100 values across independent requests or comparison groups.
 
 When product_id is supplied, a validated Google Trends row is also inserted into search_snapshots, retaining comparison_group.
+
+### Optional trendspyg provider
+
+The repository also contains an opt-in experimental connector described in docs/TRENDSPYG_PROVIDER.md. It calls Google Trends public web endpoints through a third-party library; it is **not** an official Google API. It can be refused or rate-limited. No browser, login cookies, automatic retry or identity rotation is used. Live requests require two explicit CLI flags. CI tests are mocked and do not establish live availability. Always review the current Google Terms of Service and data-use rights before enabling it.
 
 Google announced its Trends API as an alpha program with application-based early access. Do not assume general API access is available.
 
