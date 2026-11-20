@@ -76,10 +76,12 @@ def _extract_trendspyg_http_diagnostics(exc: BaseException) -> dict[str, Any] | 
 
                 headers = getattr(response, "headers", {}) or {}
 
-                def header(name: str, max_length: int = 160) -> str | None:
-                    value = headers.get(name) if hasattr(headers, "get") else None
-                    if value is None and hasattr(headers, "get"):
-                        value = headers.get(name.lower())
+                def header(
+                    name: str, max_length: int = 160, _headers: Any = headers
+                ) -> str | None:
+                    value = _headers.get(name) if hasattr(_headers, "get") else None
+                    if value is None and hasattr(_headers, "get"):
+                        value = _headers.get(name.lower())
                     if value is None:
                         return None
                     return str(value)[:max_length]
@@ -102,7 +104,7 @@ def _extract_trendspyg_http_diagnostics(exc: BaseException) -> dict[str, Any] | 
                     "response_body_excerpt": _clean_http_response_excerpt(body),
                     "proxy_env_vars_present": proxy_env_vars,
                     "requests_session_trust_env": (
-                        bool(getattr(session, "trust_env"))
+                        bool(session.trust_env)
                         if session is not None and hasattr(session, "trust_env")
                         else None
                     ),
