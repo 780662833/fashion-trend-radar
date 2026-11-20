@@ -46,8 +46,10 @@ def main() -> int:
     try:
         initialize(args.db)
         groups = load_query_plan(args.queries, args.db)
-        budget = args.max_requests or int(
-            os.getenv("TRENDSPYG_DAILY_REQUEST_BUDGET", "5")
+        budget = (
+            args.max_requests
+            if args.max_requests is not None
+            else int(os.getenv("TRENDSPYG_DAILY_REQUEST_BUDGET", "5"))
         )
         interval = (
             args.min_interval
