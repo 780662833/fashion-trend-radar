@@ -87,6 +87,25 @@ They retain the Google Trends Explore URL, market, keyword, comparison group, ca
 
 This collector does not write TikTok/social content records or metric snapshots. It does not alter product identity, audience attribution, or social performance signals. A stored Trends index remains an observed relative-search signal and must not be described as absolute volume or market-wide demand.
 
+## Audit a completed live run
+
+After a live run, audit its database records without re-running collection or modifying the database:
+
+~~~powershell
+python scripts/audit_trendspyg_run.py --db data/registry.sqlite --run-id <RUN_ID> --expected-points-per-keyword 93
+~~~
+
+Replace `<RUN_ID>` with the `run_id` returned by the collector. Omit `--expected-points-per-keyword` when the query plan uses a different point count.
+
+The read-only report checks:
+- the `source_runs` record and its saved/seen counts;
+- request counts and outcomes in `api_request_log`;
+- observations grouped by keyword, market, and `comparison_group`;
+- duplicate observation identities, synthetic flags, and 0–100 value bounds;
+- matching `search_snapshots` count and representative observation rows.
+
+**Provenance limitation:** the current `source_observations` schema does not contain `run_id`. Until a schema migration adds a direct run foreign key, this script associates observations with a run using `source_name` and the run's `captured_at` time window. That is useful for a controlled single-run audit, but it is not proof of row-level run ownership when runs from the same source overlap. The audit report labels this method explicitly. Do not interpret `checks_consistent` as a substitute for direct `run_id` lineage.
+
 ## Validation status
 
 The automated tests use mocked responses and an offline fake client. CI installs the real optional package and checks integration compatibility, but it does not make live Google requests. The provider must not be described as live-validated until an explicitly reviewed, permitted pilot has run successfully and the saved records have passed provenance and value checks.
