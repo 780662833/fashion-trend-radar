@@ -327,7 +327,7 @@ def submit_trend_tasks(
                     {"task_id": task_id, "comparison_group": group.comparison_group,
                      "keywords": list(group.keywords), "cost_usd": cost}
                 )
-            except Exception as exc:  # noqa: BLE001 - record provider failures and continue task bookkeeping
+            except Exception as exc:  # noqa: BLE001 - record provider errors and complete task bookkeeping  # noqa: BLE001 - record provider failures and continue task bookkeeping
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
                 errors.append(f"{group.comparison_group}: {exc}")
@@ -584,7 +584,7 @@ def fetch_trend_task_results(
                 saved_total += saved
                 missing_total += missing
                 completed += 1
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - record provider errors and complete task bookkeeping
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
                 if isinstance(exc, QuotaBudgetExceeded):
