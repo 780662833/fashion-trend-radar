@@ -160,6 +160,11 @@ def test_dataforseo_standard_task_is_saved_and_normalized(tmp_path):
         task = conn.execute(
             "SELECT status,result_points,missing_points FROM dataforseo_tasks"
         ).fetchone()
+        lineage = conn.execute(
+            """SELECT run_id,COUNT(*) AS linked_count
+               FROM source_run_observations
+               GROUP BY run_id"""
+        ).fetchall()
 
     assert len(observations) == 4
     first_keyword = [row for row in observations if row["keyword"] == "Kobe 9 EM Low Protro Philippines"]
@@ -174,6 +179,9 @@ def test_dataforseo_standard_task_is_saved_and_normalized(tmp_path):
     assert task["status"] == "completed"
     assert task["result_points"] == 4
     assert task["missing_points"] == 2
+    assert len(lineage) == 1
+    assert lineage[0]["run_id"] == submitted["run_id"]
+    assert lineage[0]["linked_count"] == 4
 
 
 def test_provider_task_budget_blocks_before_api_call(tmp_path):
