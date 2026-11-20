@@ -13,12 +13,15 @@ from fashion_radar.db import connect, initialize
 from fashion_radar.source_store import ensure_source_tables
 
 PRODUCT_ID = "PILOT-KOBE-9"
+_diagnostic_method = ""
+_diagnostic_url = ""
+_diagnostic_response = None
 
 
 def _simulated_upstream_request():
-    method = _diagnostic_method
-    url = _diagnostic_url
-    response = _diagnostic_response
+    method = _diagnostic_method  # noqa: F841 - locals emulate trendspyg._http._request
+    url = _diagnostic_url  # noqa: F841
+    response = _diagnostic_response  # noqa: F841
     raise RuntimeError("simulated upstream RateLimitError")
 
 
