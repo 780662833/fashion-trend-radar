@@ -86,6 +86,7 @@ class SearchSnapshotInput(BaseModel):
     period_end: date
     interest_index: float = Field(ge=0, le=100)
     source: str = "google_trends_manual"
+    comparison_group: str = ""
     captured_at: datetime | None = None
     is_synthetic: bool = False
 

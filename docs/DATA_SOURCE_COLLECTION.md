@@ -1,8 +1,8 @@
 # Data source collection and validation
 
-Updated: 2026-11-16
+Updated: 2026-11-20
 
-This document distinguishes working collection paths from manual research and unavailable/unapproved integrations. Do not describe a source as automated until the connector has been implemented and run against an authorized credential.
+This document distinguishes working collection paths from manual research and unavailable/unapproved integrations. Do not describe a source as automated until the connector has been implemented and run against an authorized credential. An optional non-official trendspyg public-web path is explicitly experimental and is not described as an official Google API.
 
 ## Source status
 
@@ -10,6 +10,7 @@ This document distinguishes working collection paths from manual research and un
 |---|---|---|---|
 | YouTube | YouTube Data API v3 search.list + videos.list | Implemented; requires user API key | Query region, request time, source URL and metric snapshot are recorded |
 | TikTok Creative Center | Human capture by country and time window | Manual capture supported | Save market, ranking period, visible metric, page URL and at least one supporting video URL |
+| TikTok DTK embedded | Explicitly enabled guest-only public-web adapter | Experimental; live access not yet validated | No login cookies; allowlisted endpoints only; research market is not audience geography; terms review required |
 | Google Trends | Trends UI CSV/manual capture | Manual capture supported | Same query group, country, date window and search type must be preserved |
 | Reddit | No connector in this phase | Not implemented | OAuth and written use-case review required before enabling |
 | Instagram | Human observation or licensed provider import | Not automated | Do not use unofficial scraping |
@@ -69,7 +70,7 @@ To explicitly test the API credential with one read-only API request, add --prob
 ## YouTube API data retention
 
 YouTube API Data is treated separately from first-party/manual observations:
-- Individual video references only; no product-level aggregation or cross-platform scoring from YouTube API Data.
+- Individual video references only; no product-level aggregation or cross-channel scoring from YouTube API Data.
 - No audiovisual content is downloaded or cached.
 - Public video metadata and non-authorized statistics are set to expire 30 days after collection.
 - Run the scheduled/manual purge script regularly: python scripts/purge_expired_youtube_data.py --db data/registry.sqlite --apply
@@ -94,14 +95,18 @@ A trend-page aggregate is stored as a source_observation, not fabricated into a 
 
 ## Google Trends capture procedure
 
-For each market:
-1. Use the same date range and search type for all terms in a comparison.
+Manual UI export remains the default acceptance path:
+1. For each market, use the same date range and search type for all terms in a comparison.
 2. Keep the comparison group stable and name it, e.g. US_2026Q4_sneaker_terms_web_90d.
 3. Export the CSV from Trends and capture its source URL and timestamp.
 4. Record the index as interest_index with unit index_0_100.
 5. Do not compare raw 0-100 values across independent requests or comparison groups.
 
 When product_id is supplied, a validated Google Trends row is also inserted into search_snapshots, retaining comparison_group.
+
+### Optional trendspyg provider
+
+The repository also contains an opt-in experimental connector described in docs/TRENDSPYG_PROVIDER.md. It calls Google Trends public web endpoints through a third-party library; it is **not** an official Google API. It can be refused or rate-limited. No browser, login cookies, automatic retry or identity rotation is used. Live requests require two explicit CLI flags. CI tests are mocked and do not establish live availability. Always review the current Google Terms of Service and data-use rights before enabling it.
 
 Google announced its Trends API as an alpha program with application-based early access. Do not assume general API access is available.
 
@@ -132,3 +137,10 @@ A successful HTTP/API response is not proof of trend representativeness. The sys
 - Reddit Data API policy: https://redditinc.com/policies/data-api-terms
 - Reddit Data API wiki: https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki
 - Pinterest Trends API: https://developers.pinterest.com/docs/analytics-and-reports/trends/
+
+## TikTok DTK embedded provider
+
+This optional integration reuses pinned DTK Python modules in the current process. It does not start the DTK API service, worker, MCP server, PostgreSQL/TimescaleDB or Redis. See [TIKTOK_EMBEDDED_PROVIDER.md](TIKTOK_EMBEDDED_PROVIDER.md).
+
+Only known public seed paths are supported: a video ID, a creator handle or a hashtag. Keyword post search is excluded because the pinned DTK endpoint table marks it as login-required. The provider sends no cookies and stages observations in `tiktok_content_candidates`; it does not automatically promote them into scoring tables. The seed market is research context, not a verified viewer location.
+

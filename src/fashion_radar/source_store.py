@@ -33,6 +33,27 @@ def ensure_source_tables(conn) -> None:
             metadata_json TEXT NOT NULL DEFAULT '{}'
         );
         CREATE INDEX IF NOT EXISTS idx_source_runs_source_time ON source_runs(source_name, started_at);
+        CREATE TABLE IF NOT EXISTS dataforseo_tasks (
+            task_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES source_runs(run_id) ON DELETE CASCADE,
+            product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+            market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
+            keywords_json TEXT NOT NULL,
+            comparison_group TEXT NOT NULL,
+            search_type TEXT NOT NULL DEFAULT 'web',
+            date_from TEXT NOT NULL,
+            date_to TEXT NOT NULL,
+            request_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'submitted',
+            submitted_at TEXT NOT NULL,
+            fetched_at TEXT,
+            result_points INTEGER NOT NULL DEFAULT 0,
+            missing_points INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL,
+            error_message TEXT NOT NULL DEFAULT ''
+        );
+        CREATE INDEX IF NOT EXISTS idx_dataforseo_tasks_run_status
+            ON dataforseo_tasks(run_id,status,submitted_at);
         CREATE TABLE IF NOT EXISTS api_request_log (
             request_id INTEGER PRIMARY KEY AUTOINCREMENT,
             run_id TEXT NOT NULL REFERENCES source_runs(run_id) ON DELETE CASCADE,
@@ -92,6 +113,37 @@ def ensure_source_tables(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_product_evidence_product
             ON product_evidence(product_id, is_primary);
+        CREATE TABLE IF NOT EXISTS tiktok_content_candidates (
+            candidate_id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES source_runs(run_id) ON DELETE CASCADE,
+            market_code TEXT NOT NULL CHECK(market_code IN ('US','CA','GB')),
+            market_basis TEXT NOT NULL DEFAULT 'research_context',
+            audience_market_code TEXT,
+            seed_type TEXT NOT NULL,
+            seed_value TEXT NOT NULL,
+            suggested_product_id TEXT REFERENCES products(product_id) ON DELETE SET NULL,
+            link_status TEXT NOT NULL DEFAULT 'needs_review'
+                CHECK(link_status IN ('needs_review','approved','rejected')),
+            external_content_id TEXT NOT NULL,
+            content_url TEXT NOT NULL,
+            published_at TEXT,
+            content_type TEXT NOT NULL DEFAULT 'unknown',
+            caption TEXT NOT NULL DEFAULT '',
+            hashtags_json TEXT NOT NULL DEFAULT '[]',
+            creator_key TEXT,
+            creator_handle TEXT NOT NULL DEFAULT '',
+            views INTEGER,
+            likes INTEGER,
+            comments INTEGER,
+            shares INTEGER,
+            saves INTEGER,
+            observed_at TEXT NOT NULL,
+            UNIQUE(run_id, market_code, external_content_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_tiktok_candidates_market_time
+            ON tiktok_content_candidates(market_code, observed_at);
+        CREATE INDEX IF NOT EXISTS idx_tiktok_candidates_product_review
+            ON tiktok_content_candidates(suggested_product_id, link_status);
         """
     )
     observation_columns = {
