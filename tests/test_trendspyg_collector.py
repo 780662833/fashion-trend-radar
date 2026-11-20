@@ -337,3 +337,116 @@ def test_optional_trendspyg_package_exports_expected_functions():
     api = pytest.importorskip("trendspyg")
     assert callable(api.download_google_trends_interest_over_time)
     assert callable(api.download_google_trends_comparison)
+
+
+@pytest.mark.parametrize(
+    ("method", "endpoint"),
+    [
+        ("POST", "/trends/api/explore"),
+        ("GET", "/trends/api/widgetdata/multiline"),
+    ],
+)
+def test_http_429_diagnostics_identify_endpoint_and_redact_response(method, endpoint):
+    from fashion_radar.collectors.trendspyg_trends import (
+        _extract_trendspyg_http_diagnostics,
+    )
+
+    namespace = {
+        "__name__": "trendspyg.explore._http",
+        "SimpleNamespace": SimpleNamespace,
+    }
+    code = compile(
+        """
+def _request():
+    method = METHOD
+    url = "https://trends.google.com" + ENDPOINT
+    response = SimpleNamespace(
+        status_code=429,
+        headers={
+            "Date": "Fri, 20 Nov 2026 12:43:25 GMT",
+            "Retry-After": "300",
+            "Content-Type": "text/html; charset=UTF-8",
+            "Server": "gws",
+        },
+        text=(
+            "<html><body>429 Too Many Requests from 192.0.2.10 "
+            "contact user@example.com</body></html>"
+        ),
+    )
+    raise RuntimeError("simulated upstream RateLimitError")
+""".replace("METHOD", repr(method)).replace("ENDPOINT", repr(endpoint)),
+        "/venv/Lib/site-packages/trendspyg/explore/_http.py",
+        "exec",
+    )
+    exec(code, namespace)
+    with pytest.raises(RuntimeError) as captured:
+        namespace["_request"]()
+
+    diagnostic = _extract_trendspyg_http_diagnostics(captured.value)
+
+    assert diagnostic is not None
+    assert diagnostic["method"] == method
+    assert diagnostic["endpoint"] == endpoint
+    assert diagnostic["status_code"] == 429
+    assert diagnostic["retry_after"] == "300"
+    assert diagnostic["response_date"] == "Fri, 20 Nov 2026 12:43:25 GMT"
+    assert diagnostic["content_type"].startswith("text/html")
+    assert "192.0.2.10" not in diagnostic["response_body_excerpt"]
+    assert "user@example.com" not in diagnostic["response_body_excerpt"]
+    assert "[redacted-ip]" in diagnostic["response_body_excerpt"]
+    assert "[redacted-email]" in diagnostic["response_body_excerpt"]
+
+
+def test_collector_persists_upstream_http_diagnostics_on_failure(tmp_path):
+    import json
+
+    db = _database(tmp_path / "registry.sqlite")
+    query_file = _query_file(tmp_path / "queries.csv")
+    namespace = {
+        "__name__": "trendspyg.explore._http",
+        "SimpleNamespace": SimpleNamespace,
+    }
+    code = compile(
+        """
+def _request():
+    method = "POST"
+    url = "https://trends.google.com/trends/api/explore"
+    response = SimpleNamespace(
+        status_code=429,
+        headers={"Retry-After": "300", "Date": "Fri, 20 Nov 2026 12:43:25 GMT"},
+        text="<html><body>Too Many Requests</body></html>",
+    )
+    raise RuntimeError("simulated HTTP 429")
+""",
+        "/venv/Lib/site-packages/trendspyg/explore/_http.py",
+        "exec",
+    )
+    exec(code, namespace)
+
+    class DiagnosticRateLimitedClient:
+        def fetch_group(self, group):
+            namespace["_request"]()
+
+    result = collect_trendspyg_trends(
+        db,
+        query_file,
+        client=DiagnosticRateLimitedClient(),
+        max_requests=5,
+        min_interval_seconds=0,
+    )
+
+    assert result["status"] == "failed"
+    assert len(result["request_diagnostics"]) == 1
+    diagnostic = result["request_diagnostics"][0]
+    assert diagnostic["endpoint"] == "/trends/api/explore"
+    assert diagnostic["status_code"] == 429
+    assert diagnostic["retry_after"] == "300"
+    assert diagnostic["comparison_group"].startswith("trendspyg_")
+    with connect(db) as conn:
+        row = conn.execute(
+            "SELECT metadata,errors FROM source_runs WHERE run_id=?",
+            (result["run_id"],),
+        ).fetchone()
+    metadata = json.loads(row["metadata"])
+    assert metadata["request_diagnostics"][0]["endpoint"] == "/trends/api/explore"
+    assert "/trends/api/explore" in row["errors"]
