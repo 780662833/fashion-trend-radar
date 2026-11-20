@@ -22,6 +22,7 @@ from ..source_store import (
     ensure_source_tables,
     finish_api_request,
     finish_source_run,
+    link_source_run_observation,
     reserve_api_request,
     start_source_run,
 )
@@ -445,7 +446,9 @@ def parse_trend_task_result(
     return rows, missing_count
 
 
-def _persist_observations(conn: sqlite3.Connection, rows: list[dict]) -> int:
+def _persist_observations(
+    conn: sqlite3.Connection, rows: list[dict], run_id: str
+) -> int:
     saved = 0
     for item in rows:
         identity = "|".join(
@@ -474,6 +477,9 @@ def _persist_observations(conn: sqlite3.Connection, rows: list[dict]) -> int:
                 item["captured_at"], item["collection_method"], item["notes"],
             ),
         )
+        # Preserve each collection run independently from the deduplicated
+        # observation row; subsequent refreshes must not erase prior lineage.
+        link_source_run_observation(conn, run_id, observation_id)
         conn.execute(
             """INSERT INTO search_snapshots(
                product_id,market_code,keyword,period_start,period_end,interest_index,source,
@@ -563,7 +569,7 @@ def fetch_trend_task_results(
                     pending.append(metadata["task_id"])
                     continue
                 normalized, missing = parse_trend_task_result(task, dict(metadata))
-                saved = _persist_observations(conn, normalized)
+                saved = _persist_observations(conn, normalized, metadata["run_id"])
                 cost = task.get("cost")
                 conn.execute(
                     """UPDATE dataforseo_tasks SET status='completed',fetched_at=?,
