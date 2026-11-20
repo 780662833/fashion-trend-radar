@@ -90,6 +90,30 @@ Defaults are deliberately conservative:
 
 Do not set a faster interval to overcome a restriction. Stop the run if the platform refuses access or returns risk-control responses.
 
+## Audit a completed pilot run
+
+After a one-seed test, audit the exact run without making another TikTok request:
+
+~~~powershell
+python scripts/audit_tiktok_embedded_run.py --db data/registry.sqlite --latest
+~~~
+
+For a specific run, use the `run_id` printed by the collector:
+
+~~~powershell
+python scripts/audit_tiktok_embedded_run.py --db data/registry.sqlite --run-id YOUR_RUN_ID
+~~~
+
+The audit opens the existing database in read-only mode. It does not initialize or migrate the schema and does not call TikTok. It checks that:
+
+- the candidate row count matches `source_runs.items_saved`;
+- the API request log count matches `metadata.requests_made`, and each request has a final successful result;
+- candidate URLs use HTTPS on `www.tiktok.com`, with no duplicate market/content identities;
+- market attribution remains `research_context`, with no inferred audience country;
+- candidates still marked `needs_review` have not been inserted into `social_signals` or `metric_snapshots`.
+
+The latest selector includes failed and partial runs, so a later unsuccessful attempt is not silently skipped. A non-zero exit or `mismatch` is a failed acceptance result; inspect the request log and candidate audit before making any further collection attempt.
+
 ## Market and scoring semantics
 
 The CSV market_code is the market context used to plan the seed and configure request locale hints. It does not prove creator residence or audience geography. Candidate rows use market_basis=research_context and leave audience_market_code NULL.
