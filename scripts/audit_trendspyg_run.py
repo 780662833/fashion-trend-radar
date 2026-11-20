@@ -60,39 +60,73 @@ def audit_run(
     source_name = run["source_name"]
     started_at = run["started_at"]
     finished_at = run["finished_at"]
+    saved_expected = int(run.get("items_saved") or 0)
+    query_expected = int(run.get("query_count") or 0)
+
     observation_columns = {
         row["name"]
         for row in conn.execute("PRAGMA table_info(source_observations)")
     }
-    direct_run_id = "run_id" in observation_columns
+    has_link_table = "source_run_observations" in tables
+    has_direct_run_column = "run_id" in observation_columns
 
-    # source_observations currently has no run_id. Use the source and run time
-    # window as a clearly labelled approximation until a direct FK is added.
-    observation_filters = ["source_name = ?"]
-    observation_params: list[Any] = [source_name]
-    if direct_run_id:
-        observation_filters.append("run_id = ?")
-        observation_params.append(run_id)
-    else:
-        if not started_at or not finished_at:
-            raise RuntimeError(
-                "The source run has no finished time; cannot perform a time-window audit."
-            )
-        observation_filters.append(
+    legacy_filters = ["source_name = ?"]
+    legacy_params: list[Any] = [source_name]
+    if started_at and finished_at:
+        legacy_filters.append(
             "datetime(captured_at) BETWEEN datetime(?) AND datetime(?)"
         )
-        observation_params.extend([started_at, finished_at])
-
+        legacy_params.extend([started_at, finished_at])
+    else:
+        legacy_filters.append("1 = 0")
     if run.get("market_code"):
-        observation_filters.append("market_code = ?")
-        observation_params.append(run["market_code"])
+        legacy_filters.append("market_code = ?")
+        legacy_params.append(run["market_code"])
+    legacy_where_sql = " AND ".join(legacy_filters)
 
-    where_sql = " AND ".join(observation_filters)
+    legacy_candidate_count = int(
+        conn.execute(
+            f"SELECT COUNT(*) FROM source_observations WHERE {legacy_where_sql}",
+            legacy_params,
+        ).fetchone()[0]
+    )
 
-    observation_count = conn.execute(
-        f"SELECT COUNT(*) FROM source_observations WHERE {where_sql}",
-        observation_params,
-    ).fetchone()[0]
+    linked_count: int | None = None
+    if has_link_table:
+        linked_count = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM source_run_observations WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()[0]
+        )
+
+    if has_link_table and (linked_count or saved_expected == 0):
+        association_method = "source_run_observations"
+        where_sql = (
+            "observation_id IN "
+            "(SELECT observation_id FROM source_run_observations WHERE run_id = ?)"
+        )
+        observation_params: list[Any] = [run_id]
+        direct_association = True
+    elif has_direct_run_column:
+        association_method = "source_observations.run_id"
+        where_sql = "run_id = ?"
+        observation_params = [run_id]
+        direct_association = True
+    else:
+        # Legacy rows are included only as diagnostic candidates, never counted
+        # as proven run-owned observations.
+        association_method = "legacy_time_window_unverified"
+        where_sql = legacy_where_sql
+        observation_params = legacy_params
+        direct_association = False
+
+    observation_count = int(
+        conn.execute(
+            f"SELECT COUNT(*) FROM source_observations WHERE {where_sql}",
+            observation_params,
+        ).fetchone()[0]
+    )
 
     grouped = conn.execute(
         f"""
@@ -171,10 +205,11 @@ def audit_run(
     }
 
     snapshot_summary: dict[str, int | None] = {
-        "matching_rows": None,
+        "time_window_candidate_rows": None,
+        "run_level_linkage": False,
     }
     if "search_snapshots" in tables and started_at and finished_at:
-        snapshot_summary["matching_rows"] = int(
+        snapshot_summary["time_window_candidate_rows"] = int(
             conn.execute(
                 """
                 SELECT COUNT(*)
@@ -201,11 +236,14 @@ def audit_run(
         [*observation_params, sample_limit],
     ).fetchall()
 
-    saved_expected = int(run.get("items_saved") or 0)
-    query_expected = int(run.get("query_count") or 0)
     checks = {
-        "observation_count_matches_source_run_items_saved":
-            observation_count == saved_expected,
+        "source_run_observation_lineage_table_exists": has_link_table,
+        "observation_count_matches_source_run_items_saved": (
+            direct_association and observation_count == saved_expected
+        ),
+        "run_observation_links_match_items_saved": (
+            has_link_table and linked_count == saved_expected
+        ),
         "api_request_count_matches_source_run_query_count":
             api_summary["request_count"] == query_expected,
         "all_logged_requests_succeeded":
@@ -230,13 +268,26 @@ def audit_run(
             for item in keyword_groups
         )
 
-    if snapshot_summary["matching_rows"] is not None:
-        checks["search_snapshot_count_matches_observation_count"] = (
-            snapshot_summary["matching_rows"] == observation_count
+    status = "checks_consistent" if all(checks.values()) else (
+        "legacy_unlinked" if not direct_association else "mismatch"
+    )
+
+    limitations = []
+    if association_method == "legacy_time_window_unverified":
+        limitations.extend([
+            "No direct run-to-observation links exist for this run. Rows selected by "
+            "source_name and captured_at are diagnostic candidates only.",
+            "Time-window candidates are not proof of run ownership and may include "
+            "observations from another overlapping run.",
+        ])
+    if "search_snapshots" in tables:
+        limitations.append(
+            "search_snapshots has no run-level lineage table; its count is reported "
+            "as a time-window candidate count, not a direct run association."
         )
 
     return {
-        "status": "checks_consistent" if all(checks.values()) else "mismatch",
+        "status": status,
         "run_id": run_id,
         "source_run": {
             "source_name": source_name,
@@ -251,11 +302,12 @@ def audit_run(
             "metadata": _decode_json(run.get("metadata_json"), {}),
         },
         "observation_audit": {
-            "association_method": (
-                "direct_run_id" if direct_run_id else "source_and_time_window"
-            ),
-            "source_observations_has_run_id": direct_run_id,
-            "matching_observation_count": int(observation_count),
+            "association_method": association_method,
+            "source_observations_has_run_id": has_direct_run_column,
+            "source_run_observations_table_exists": has_link_table,
+            "linked_observation_count": linked_count,
+            "legacy_time_window_candidate_count": legacy_candidate_count,
+            "matching_observation_count": observation_count,
             "keyword_group_count": len(keyword_groups),
             "keyword_groups": keyword_groups,
             "possible_duplicate_identity_groups": _rows_as_dicts(duplicates),
@@ -264,16 +316,7 @@ def audit_run(
         "search_snapshots": snapshot_summary,
         "checks": checks,
         "samples": _rows_as_dicts(sample_rows),
-        "limitations": (
-            []
-            if direct_run_id
-            else [
-                "source_observations has no run_id column; observations are associated "
-                "by source_name and captured_at within the run window.",
-                "Time-window association is not a foreign-key proof and can include "
-                "another concurrent run from the same source.",
-            ]
-        ),
+        "limitations": limitations,
     }
 
 
@@ -309,7 +352,6 @@ def main() -> int:
         return 2
 
     try:
-        # Path.as_uri handles Windows drive letters and spaces safely.
         db_uri = db_path.resolve().as_uri() + "?mode=ro"
         conn = sqlite3.connect(db_uri, uri=True)
         conn.row_factory = sqlite3.Row
