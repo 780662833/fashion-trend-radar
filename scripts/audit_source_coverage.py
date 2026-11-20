@@ -16,6 +16,11 @@ MANUAL_SOURCES = (
     "reddit_manual",
     "instagram_manual",
 )
+PROVIDER_SOURCES = (
+    "dataforseo_google_trends",
+    "trendspyg_google_trends",
+)
+COVERAGE_SOURCES = (*MANUAL_SOURCES, *PROVIDER_SOURCES)
 
 
 def build_coverage_report(
@@ -26,7 +31,7 @@ def build_coverage_report(
 ) -> dict:
     if stale_after_days < 0:
         raise ValueError("stale_after_days must be >= 0")
-    unknown = sorted(set(required_sources) - set(MANUAL_SOURCES))
+    unknown = sorted(set(required_sources) - set(COVERAGE_SOURCES))
     if unknown:
         raise ValueError(f"unsupported required source(s): {', '.join(unknown)}")
 
@@ -49,7 +54,7 @@ def build_coverage_report(
     cutoff = (as_of - timedelta(days=stale_after_days)).isoformat()
 
     matrix = []
-    for source in MANUAL_SOURCES:
+    for source in COVERAGE_SOURCES:
         for market in MARKETS:
             row = indexed.get((source, market))
             real_count = int(row["real_count"] or 0) if row else 0
@@ -99,7 +104,9 @@ def build_coverage_report(
         "source_market_matrix": matrix,
         "notes": [
             "Only accepted, non-synthetic source observations count as real coverage.",
-            "YouTube Data API references are stored separately and are not included in this manual-source matrix.",
+            "DataForSEO and trendspyg Google Trends observations are reported as separate provider sources; neither is merged into google_trends_ui.",
+            "Trendspyg is a non-official public-web integration; listing its observations does not establish ongoing access rights or representativeness.",
+            "YouTube Data API references are stored separately and are not included in this source-observation matrix.",
             "A current row indicates recent captured evidence, not that the sample is statistically representative.",
         ],
     }
