@@ -181,6 +181,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 def initialize(db_path: str | Path) -> None:
     source_rows = [
         ("TikTok Creative Center", "trend_discovery", "tiktok", "manual_or_permitted_access", "Use publicly available trend pages and keep the original URL; no unsupported scraping."),
+        ("TikTok DTK embedded guest collector", "social_content_candidates", "tiktok", "self_hosted_guest_web_opt_in", "Experimental non-official guest-only public-web integration; no login cookies; review current TikTok terms before use; candidates require manual product-link review."),
         ("YouTube Data API", "social_content", "youtube", "official_api", "Use an authorized API key and respect API quota and terms."),
         ("Google Trends", "search_interest", "google_trends", "manual_csv_or_approved_api", "Relative interest index is not absolute search volume; API Alpha access is not assumed."),
         ("Reddit Data API", "community_discussion", "reddit", "oauth_api", "Use OAuth, comply with API terms, and honor deletion requirements."),

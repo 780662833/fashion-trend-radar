@@ -10,7 +10,8 @@ This document distinguishes working collection paths from manual research and un
 |---|---|---|---|
 | YouTube | YouTube Data API v3 search.list + videos.list | Implemented; requires user API key | Query region, request time, source URL and metric snapshot are recorded |
 | TikTok Creative Center | Human capture by country and time window | Manual capture supported | Save market, ranking period, visible metric, page URL and at least one supporting video URL |
-| Google Trends | UI CSV/manual capture; optional experimental trendspyg HTTP connector | Manual path is default; trendspyg is opt-in and not live-validated | Same comparison group, market, date window and search type must be preserved; see docs/TRENDSPYG_PROVIDER.md |
+| TikTok DTK embedded | Explicitly enabled guest-only public-web adapter | Experimental; live access not yet validated | No login cookies; allowlisted endpoints only; research market is not audience geography; terms review required |
+| Google Trends | Trends UI CSV/manual capture | Manual capture supported | Same query group, country, date window and search type must be preserved |
 | Reddit | No connector in this phase | Not implemented | OAuth and written use-case review required before enabling |
 | Instagram | Human observation or licensed provider import | Not automated | Do not use unofficial scraping |
 | Pinterest Trends | Human observation or approved API access | Not automated | API access and historical limitations must be checked first |
@@ -136,3 +137,10 @@ A successful HTTP/API response is not proof of trend representativeness. The sys
 - Reddit Data API policy: https://redditinc.com/policies/data-api-terms
 - Reddit Data API wiki: https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki
 - Pinterest Trends API: https://developers.pinterest.com/docs/analytics-and-reports/trends/
+
+## TikTok DTK embedded provider
+
+This optional integration reuses pinned DTK Python modules in the current process. It does not start the DTK API service, worker, MCP server, PostgreSQL/TimescaleDB or Redis. See [TIKTOK_EMBEDDED_PROVIDER.md](TIKTOK_EMBEDDED_PROVIDER.md).
+
+Only known public seed paths are supported: a video ID, a creator handle or a hashtag. Keyword post search is excluded because the pinned DTK endpoint table marks it as login-required. The provider sends no cookies and stages observations in `tiktok_content_candidates`; it does not automatically promote them into scoring tables. The seed market is research context, not a verified viewer location.
+

@@ -1,6 +1,6 @@
 # Provider-backed research collectors
 
-Updated: 2026-11-19
+Updated: 2026-11-20
 
 This implementation adds a guarded DataForSEO Google Trends collector, an Exolyt CSV schema inspector, and a conservative Scrapy public-page fetcher. It does not fabricate sample observations and does not bypass platform access controls.
 
@@ -161,9 +161,21 @@ This is important for Google Trends: indices from unrelated comparison groups mu
 
 Do not start the full 297-task batch until the Kobe 9 / US DataForSEO task result has been fetched, Exolyt's actual export format has been inspected, and the public-page seed policy has been reviewed. No source should be represented as live-validated merely because its code exists.
 
+## DTK Embedded TikTok provider — experimental, opt-in
 
-## 6. Experimental open-source Google Trends path: trendspyg
+The embedded provider imports a pinned subset of DTK 5.1.11 into the same
+Python process. It does not start a DTK API server or its PostgreSQL/Redis
+dependencies. See [TIKTOK_EMBEDDED_PROVIDER.md](TIKTOK_EMBEDDED_PROVIDER.md).
 
-An optional, non-official public-web provider is available through the pinned `trendspyg==1.9.0` package. It is not a Google API and is not an exact replacement for DataForSEO. It is disabled by default, uses HTTP only without cookies or browser automation, and stops after any upstream failure. Default controls are five requests per Pacific Time day and 15 seconds between requests.
+Its anonymous guest allowlist is limited to post detail, author profile,
+public author posts, hashtag detail and posts under a hashtag. Keyword post
+search remains disabled because the pinned endpoint metadata marks that path
+as login-required. The provider sends no cookies and stores results in
+\`tiktok_content_candidates\` for review; it does not write directly into
+product scoring tables.
 
-Setup, dry-run, explicit execution, comparison-scale rules, limitations, storage behavior and current Terms of Service review requirements are documented in [TRENDSPYG_PROVIDER.md](TRENDSPYG_PROVIDER.md). Do not describe the provider as live-validated based only on offline tests.
+This is a non-official public-web integration, not TikTok's Developer API.
+It is opt-in, preview-first and requires a current platform-terms and data-use
+review. A successful unit test or HTTP 200 is not proof of ongoing access
+rights or market representativeness.
+
