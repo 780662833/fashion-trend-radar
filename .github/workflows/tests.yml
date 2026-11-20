@@ -28,13 +28,22 @@ jobs:
       - name: Install package and test dependencies
         if: matrix.python-version != '3.13'
         run: python -m pip install -e ".[dev]"
-      - name: Install package, test dependencies and pinned DTK extra
+      - name: Install package, test dependencies and optional collectors
         if: matrix.python-version == '3.13'
-        run: python -m pip install -e ".[dev,tiktok-embedded]"
-        run: python -m pip install -e ".[dev,trendspyg]"
+        run: python -m pip install -e ".[dev,tiktok-embedded,trendspyg]"
       - name: Run tests
         run: python -m pytest -q
       - name: Run Ruff
-        run: python -m ruff check src/fashion_radar/collectors/trendspyg_trends.py tests/test_trendspyg_collector.py scripts/collect_trendspyg_trends.py
+        run: >-
+          python -m ruff check
+          src/fashion_radar/source_store.py
+          src/fashion_radar/collectors/trendspyg_trends.py
+          src/fashion_radar/collectors/dataforseo_trends.py
+          tests/test_trendspyg_collector.py
+          tests/test_trendspyg_run_audit.py
+          tests/test_dataforseo_collector.py
+          scripts/collect_trendspyg_trends.py
+          scripts/audit_trendspyg_run.py
+          scripts/migrate_source_run_observation_links.py
       - name: Compile project modules
         run: python -m compileall -q src app scripts tests
