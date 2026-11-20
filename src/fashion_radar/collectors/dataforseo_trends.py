@@ -8,7 +8,7 @@ import os
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -22,6 +22,7 @@ from ..source_store import (
     ensure_source_tables,
     finish_api_request,
     finish_source_run,
+    link_source_run_observation,
     reserve_api_request,
     start_source_run,
 )
@@ -49,7 +50,7 @@ class DataForSEOApiClient:
     def __init__(self, login: str, password: str, timeout: float = 45.0) -> None:
         if not login or not password:
             raise ValueError("DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD are required")
-        token = base64.b64encode(f"{login}:{password}".encode("utf-8")).decode("ascii")
+        token = base64.b64encode(f"{login}:{password}".encode()).decode("ascii")
         self._authorization = f"Basic {token}"
         self.timeout = timeout
 
@@ -317,7 +318,7 @@ def submit_trend_tasks(
                         json.dumps(group.request_payload(build_provider_task_tag(group)),
                                    ensure_ascii=False, sort_keys=True),
                         "submitted",
-                        datetime.now(timezone.utc).isoformat(),
+                        datetime.now(UTC).isoformat(),
                         float(cost) if cost is not None else None,
                     ),
                 )
@@ -326,7 +327,7 @@ def submit_trend_tasks(
                     {"task_id": task_id, "comparison_group": group.comparison_group,
                      "keywords": list(group.keywords), "cost_usd": cost}
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - record provider errors and complete task bookkeeping  # noqa: BLE001 - record provider failures and continue task bookkeeping
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
                 errors.append(f"{group.comparison_group}: {exc}")
@@ -369,7 +370,7 @@ def parse_trend_task_result(
     missing_count = 0
     graph_count = 0
     check_url = ""
-    capture_time = captured_at or datetime.now(timezone.utc).isoformat()
+    capture_time = captured_at or datetime.now(UTC).isoformat()
     for result in results:
         check_url = result.get("check_url") or check_url
         result_keywords = result.get("keywords") or keywords
@@ -445,7 +446,9 @@ def parse_trend_task_result(
     return rows, missing_count
 
 
-def _persist_observations(conn: sqlite3.Connection, rows: list[dict]) -> int:
+def _persist_observations(
+    conn: sqlite3.Connection, rows: list[dict], run_id: str
+) -> int:
     saved = 0
     for item in rows:
         identity = "|".join(
@@ -474,6 +477,9 @@ def _persist_observations(conn: sqlite3.Connection, rows: list[dict]) -> int:
                 item["captured_at"], item["collection_method"], item["notes"],
             ),
         )
+        # Preserve each collection run independently from the deduplicated
+        # observation row; subsequent refreshes must not erase prior lineage.
+        link_source_run_observation(conn, run_id, observation_id)
         conn.execute(
             """INSERT INTO search_snapshots(
                product_id,market_code,keyword,period_start,period_end,interest_index,source,
@@ -563,14 +569,14 @@ def fetch_trend_task_results(
                     pending.append(metadata["task_id"])
                     continue
                 normalized, missing = parse_trend_task_result(task, dict(metadata))
-                saved = _persist_observations(conn, normalized)
+                saved = _persist_observations(conn, normalized, metadata["run_id"])
                 cost = task.get("cost")
                 conn.execute(
                     """UPDATE dataforseo_tasks SET status='completed',fetched_at=?,
                        result_points=?,missing_points=?,cost_usd=COALESCE(?,cost_usd),
                        error_message='' WHERE task_id=?""",
                     (
-                        datetime.now(timezone.utc).isoformat(), saved, missing,
+                        datetime.now(UTC).isoformat(), saved, missing,
                         float(cost) if cost is not None else None, metadata["task_id"],
                     ),
                 )
@@ -578,7 +584,7 @@ def fetch_trend_task_results(
                 saved_total += saved
                 missing_total += missing
                 completed += 1
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - record provider errors and complete task bookkeeping
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
                 if isinstance(exc, QuotaBudgetExceeded):
@@ -606,7 +612,7 @@ def fetch_trend_task_results(
                    items_saved=?,metadata_json=json_set(metadata_json,'$.pending_results',?,
                    '$.failed_tasks',?) WHERE run_id=?""",
                 (
-                    run_status, datetime.now(timezone.utc).isoformat(),
+                    run_status, datetime.now(UTC).isoformat(),
                     counts["total"], counts["saved"], counts["pending"], counts["failed"],
                     touched_run,
                 ),

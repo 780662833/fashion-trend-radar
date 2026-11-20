@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -12,7 +12,7 @@ class QuotaBudgetExceeded(RuntimeError):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ensure_source_tables(conn) -> None:
@@ -100,6 +100,16 @@ def ensure_source_tables(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_source_observations_market_period
             ON source_observations(market_code, period_end);
+        CREATE TABLE IF NOT EXISTS source_run_observations (
+            run_id TEXT NOT NULL
+                REFERENCES source_runs(run_id) ON DELETE CASCADE,
+            observation_id TEXT NOT NULL
+                REFERENCES source_observations(observation_id) ON DELETE CASCADE,
+            linked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(run_id, observation_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_source_run_observations_observation
+            ON source_run_observations(observation_id);
         CREATE TABLE IF NOT EXISTS product_evidence (
             evidence_id TEXT PRIMARY KEY,
             product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
@@ -160,6 +170,17 @@ def ensure_source_tables(conn) -> None:
     )
 
 
+def link_source_run_observation(
+    conn, run_id: str, observation_id: str
+) -> None:
+    """Idempotently link an immutable run to an observation it saved or refreshed."""
+    conn.execute(
+        """INSERT OR IGNORE INTO source_run_observations(run_id, observation_id)
+           VALUES(?, ?)""",
+        (run_id, observation_id),
+    )
+
+
 def start_source_run(conn, run_id: str, source_name: str, market_code: str | None,
                      query_count: int, metadata: dict | None = None) -> None:
     conn.execute(
@@ -215,8 +236,8 @@ def purge_expired_youtube_references(conn, now: datetime | None = None) -> int:
     """Delete public YouTube API reference rows once their 30-day retention expires."""
     instant = now or utc_now()
     if instant.tzinfo is None:
-        instant = instant.replace(tzinfo=timezone.utc)
-    cutoff = instant.astimezone(timezone.utc).isoformat()
+        instant = instant.replace(tzinfo=UTC)
+    cutoff = instant.astimezone(UTC).isoformat()
     cursor = conn.execute(
         "DELETE FROM youtube_video_references WHERE expires_at<=?",
         (cutoff,),

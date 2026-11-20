@@ -10,6 +10,7 @@ from fashion_radar.collectors.trendspyg_trends import (
     normalize_trendspyg_points,
 )
 from fashion_radar.db import connect, initialize
+from fashion_radar.source_store import ensure_source_tables
 
 PRODUCT_ID = "PILOT-KOBE-9"
 
@@ -190,6 +191,10 @@ def test_collect_persists_provenance_and_isolates_comparison_groups(tmp_path):
             "SELECT status,items_seen,items_saved FROM source_runs WHERE run_id=?",
             (result["run_id"],),
         ).fetchone()
+        links = conn.execute(
+            "SELECT run_id,observation_id FROM source_run_observations WHERE run_id=?",
+            (result["run_id"],),
+        ).fetchall()
 
     assert len(observations) == 3
     assert len({row["comparison_group"] for row in observations}) == 2
@@ -202,6 +207,74 @@ def test_collect_persists_provenance_and_isolates_comparison_groups(tmp_path):
     assert run["items_seen"] == 2
     assert run["items_saved"] == 3
     assert len(snapshots) == 3
+    assert len(links) == 3
+    assert all(row["run_id"] == result["run_id"] for row in links)
+
+
+def test_repeated_collection_preserves_many_to_many_run_lineage(tmp_path):
+    db = _database(tmp_path / "registry.sqlite")
+    query_file = _query_file(tmp_path / "queries.csv")
+
+    first = collect_trendspyg_trends(
+        db, query_file, client=FakeTrendspygClient(),
+        max_requests=5, min_interval_seconds=0,
+    )
+    second = collect_trendspyg_trends(
+        db, query_file, client=FakeTrendspygClient(),
+        max_requests=5, min_interval_seconds=0,
+    )
+
+    assert first["status"] == second["status"] == "success"
+    with connect(db) as conn:
+        observation_count = conn.execute(
+            "SELECT COUNT(*) FROM source_observations"
+        ).fetchone()[0]
+        links = conn.execute(
+            """SELECT run_id, COUNT(*) AS linked_count
+               FROM source_run_observations
+               GROUP BY run_id ORDER BY run_id"""
+        ).fetchall()
+        run_counts_per_observation = conn.execute(
+            """SELECT observation_id, COUNT(DISTINCT run_id) AS run_count
+               FROM source_run_observations
+               GROUP BY observation_id"""
+        ).fetchall()
+        foreign_key_violations = conn.execute(
+            "PRAGMA foreign_key_check"
+        ).fetchall()
+
+    assert observation_count == 3
+    assert {row["run_id"] for row in links} == {
+        first["run_id"], second["run_id"]
+    }
+    assert all(row["linked_count"] == 3 for row in links)
+    assert len(run_counts_per_observation) == 3
+    assert all(row["run_count"] == 2 for row in run_counts_per_observation)
+    assert foreign_key_violations == []
+
+
+def test_run_observation_lineage_migration_is_idempotent(tmp_path):
+    db = _database(tmp_path / "registry.sqlite")
+    with connect(db) as conn:
+        ensure_source_tables(conn)
+        ensure_source_tables(conn)
+        columns = {
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(source_run_observations)"
+            )
+        }
+        primary_key = [
+            row["name"]
+            for row in sorted(
+                conn.execute("PRAGMA table_info(source_run_observations)").fetchall(),
+                key=lambda row: row["pk"],
+            )
+            if row["pk"]
+        ]
+
+    assert columns == {"run_id", "observation_id", "linked_at"}
+    assert primary_key == ["run_id", "observation_id"]
 
 
 def test_budget_blocks_before_any_provider_request(tmp_path):

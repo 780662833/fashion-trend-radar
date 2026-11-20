@@ -15,6 +15,7 @@ from ..source_store import (
     ensure_source_tables,
     finish_api_request,
     finish_source_run,
+    link_source_run_observation,
     reserve_api_request,
     start_source_run,
 )
@@ -188,7 +189,7 @@ def normalize_trendspyg_points(
     return rows, missing_count
 
 
-def _persist_observations(conn, rows: list[dict]) -> int:
+def _persist_observations(conn, run_id: str, rows: list[dict]) -> int:
     saved = 0
     for item in rows:
         identity = "|".join(str(item[key] or "") for key in (
@@ -215,6 +216,10 @@ def _persist_observations(conn, rows: list[dict]) -> int:
                 item["captured_at"], item["collection_method"], item["notes"],
             ),
         )
+        # The observation row is intentionally deduplicated across collection runs.
+        # Preserve lineage separately so a refreshed observation can belong to
+        # multiple source runs without overwriting its earlier run history.
+        link_source_run_observation(conn, run_id, observation_id)
         conn.execute(
             """INSERT INTO search_snapshots(
                product_id,market_code,keyword,period_start,period_end,interest_index,source,
@@ -338,7 +343,7 @@ def collect_trendspyg_trends(
                 attempted_at = time.monotonic()
                 points = api.fetch_group(group)
                 normalized, missing = normalize_trendspyg_points(group, points)
-                saved = _persist_observations(conn, normalized)
+                saved = _persist_observations(conn, run_id, normalized)
                 finish_api_request(conn, request_id, True)
                 saved_total += saved
                 missing_total += missing
