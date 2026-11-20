@@ -164,7 +164,17 @@ For historical runs with no association rows, the audit may display `source_name
 
 ## Validation status
 
-The automated tests use mocked responses and an offline fake client. CI installs the real optional package and checks integration compatibility, but it does not make live Google requests. The provider must not be described as live-validated until an explicitly reviewed, permitted pilot has run successfully and the saved records have passed provenance and value checks.
+The automated tests use mocked responses and an offline fake client. CI installs the real optional package and checks integration compatibility, but it does not make live Google requests.
+
+A one-time user-run US pilot completed on 2026-11-20:
+
+- Run ID: `5e922edc-96d4-48fb-b1d8-fab2a5ba1fb1`.
+- Requests: 2 planned, 2 completed.
+- Points seen: 186; accepted observations saved: 465.
+- Missing points: 0; errors: 0.
+- The read-only run audit returned `checks_consistent`, including direct run-to-observation linkage and stored-count checks.
+
+This validates one successful US collection run only. It does not establish ongoing endpoint availability, unrestricted collection or redistribution rights, market representativeness, or any CA/GB coverage. Continue to treat the connector as experimental and stop when Google refuses a request.
 
 ## Upstream references
 
