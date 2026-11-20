@@ -127,7 +127,7 @@ python scripts/audit_trendspyg_run.py --db data/registry.sqlite --run-id <RUN_ID
 
 Replace `<RUN_ID>` with the `run_id` returned by the collector. Omit `--expected-points-per-keyword` when the query plan uses a different point count.
 
-For runs collected after the migration, the audit uses `source_run_observations` and checks that the number of direct links matches `source_runs.items_saved`. The report also checks:
+For runs collected after the migration, trendspyg and DataForSEO result-fetch persistence use `source_run_observations`; the trendspyg audit uses that table and checks that the number of direct links matches `source_runs.items_saved`. The report also checks:
 - request counts and outcomes in `api_request_log`;
 - observations grouped by keyword, market, and `comparison_group`;
 - duplicate observation identities, synthetic flags, and 0–100 value bounds;
