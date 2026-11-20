@@ -16,6 +16,11 @@ def _add_observation(
     *,
     synthetic: int = 0,
     product_id: str | None = None,
+    metric_name: str = "trend_rank",
+    metric_value: int = 1,
+    metric_unit: str = "rank",
+    source_url: str | None = None,
+    collection_method: str = "manual_capture",
 ) -> None:
     conn.execute(
         """INSERT INTO source_observations(
@@ -25,9 +30,9 @@ def _add_observation(
            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             observation_id, source, "trend", market, product_id, "test keyword",
-            "trend_rank", 1, "rank", "2026-11-01", period_end, "",
-            f"https://ads.tiktok.com/test/{observation_id}",
-            "2026-11-16T12:00:00+00:00", "manual_capture", synthetic, "accepted",
+            metric_name, metric_value, metric_unit, "2026-11-01", period_end, "",
+            source_url or f"https://ads.tiktok.com/test/{observation_id}",
+            "2026-11-16T12:00:00+00:00", collection_method, synthetic, "accepted",
         ),
     )
 
@@ -60,6 +65,77 @@ def test_required_sources_ready_only_when_all_markets_have_current_real_data(tmp
     assert len(required_rows) == 6
     assert {row["status"] for row in required_rows} == {"current"}
     assert all(row["product_linked_real_observations"] == 1 for row in required_rows)
+
+
+def test_google_trends_provider_sources_are_reported_separately_and_can_be_required(
+    tmp_path,
+):
+    db = tmp_path / "registry.sqlite"
+    initialize(db)
+    with connect(db) as conn:
+        ensure_source_tables(conn)
+        _add_observation(
+            conn,
+            "trendspyg-us",
+            "trendspyg_google_trends",
+            "US",
+            "2026-11-18",
+            metric_name="interest_index",
+            metric_value=55,
+            metric_unit="index_0_100",
+            source_url="https://trends.google.com/trends/explore?geo=US",
+            collection_method="non_official_public_web_library",
+        )
+        _add_observation(
+            conn,
+            "dataforseo-ca",
+            "dataforseo_google_trends",
+            "CA",
+            "2026-11-18",
+            metric_name="interest_index",
+            metric_value=61,
+            metric_unit="index_0_100",
+            source_url="https://trends.google.com/trends/explore?geo=CA",
+            collection_method="dataforseo_api",
+        )
+        report = build_coverage_report(
+            conn,
+            date(2026, 11, 20),
+            stale_after_days=30,
+            required_sources=(
+                "trendspyg_google_trends",
+                "dataforseo_google_trends",
+            ),
+        )
+
+    statuses = {
+        (row["source_name"], row["market_code"]): row["status"]
+        for row in report["source_market_matrix"]
+    }
+    assert statuses[("trendspyg_google_trends", "US")] == "current"
+    assert statuses[("trendspyg_google_trends", "CA")] == "missing"
+    assert statuses[("trendspyg_google_trends", "GB")] == "missing"
+    assert statuses[("dataforseo_google_trends", "US")] == "missing"
+    assert statuses[("dataforseo_google_trends", "CA")] == "current"
+    assert statuses[("dataforseo_google_trends", "GB")] == "missing"
+
+    # Provider observations do not get silently re-labelled as manual UI captures.
+    assert {
+        statuses[(source, market)]
+        for source in ("google_trends_ui",)
+        for market in ("US", "CA", "GB")
+    } == {"missing"}
+    assert report["required_sources_ready"] is False
+    assert report["required_source_gaps"] == [
+        {
+            "source_name": "trendspyg_google_trends",
+            "markets_not_current": ["CA", "GB"],
+        },
+        {
+            "source_name": "dataforseo_google_trends",
+            "markets_not_current": ["US", "GB"],
+        },
+    ]
 
 
 def test_synthetic_only_and_stale_rows_do_not_count_as_current_coverage(tmp_path):
