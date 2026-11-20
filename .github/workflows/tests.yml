@@ -42,7 +42,9 @@ jobs:
           tests/test_trendspyg_collector.py
           tests/test_trendspyg_run_audit.py
           tests/test_source_coverage_audit.py
+          tests/test_tiktok_embedded_run_audit.py
           scripts/collect_trendspyg_trends.py
+          scripts/audit_tiktok_embedded_run.py
           scripts/audit_trendspyg_run.py
           scripts/audit_source_coverage.py
           scripts/migrate_source_run_observation_links.py
