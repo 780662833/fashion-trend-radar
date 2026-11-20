@@ -87,9 +87,39 @@ They retain the Google Trends Explore URL, market, keyword, comparison group, ca
 
 This collector does not write TikTok/social content records or metric snapshots. It does not alter product identity, audience attribution, or social performance signals. A stored Trends index remains an observed relative-search signal and must not be described as absolute volume or market-wide demand.
 
-## Audit a completed live run
+## Run-level observation lineage
 
-After a live run, audit its database records without re-running collection or modifying the database:
+`source_observations` deliberately keeps a stable, deduplicated observation identity. The same observation can be refreshed by later collection runs, so a single `run_id` column on that table would overwrite earlier run history.
+
+The additive `source_run_observations` table records the many-to-many lineage instead:
+
+- `run_id` references `source_runs.run_id`.
+- `observation_id` references `source_observations.observation_id`.
+- `PRIMARY KEY(run_id, observation_id)` makes repeated writes within one run idempotent.
+- One observation may be linked to multiple runs when it is refreshed again.
+- Deleting a run or observation cascades only to its association rows; observation deduplication remains unchanged.
+
+The migration does not guess historical links from timestamps. Existing rows stay intact but unlinked; new trendspyg runs create direct links as observations are saved.
+
+### Apply the local schema migration
+
+First preview the database without writing:
+
+~~~powershell
+python scripts/migrate_source_run_observation_links.py --db data/registry.sqlite
+~~~
+
+Then apply the additive schema change:
+
+~~~powershell
+python scripts/migrate_source_run_observation_links.py --db data/registry.sqlite --apply
+~~~
+
+The migration checks that the database already exists, creates the association table and index idempotently, and runs `PRAGMA foreign_key_check`. It does not make network requests, alter existing observation values, or backfill uncertain historical run links.
+
+### Audit a completed live run
+
+After migration, run the read-only audit without repeating collection:
 
 ~~~powershell
 python scripts/audit_trendspyg_run.py --db data/registry.sqlite --run-id <RUN_ID> --expected-points-per-keyword 93
@@ -97,14 +127,14 @@ python scripts/audit_trendspyg_run.py --db data/registry.sqlite --run-id <RUN_ID
 
 Replace `<RUN_ID>` with the `run_id` returned by the collector. Omit `--expected-points-per-keyword` when the query plan uses a different point count.
 
-The read-only report checks:
-- the `source_runs` record and its saved/seen counts;
+For runs collected after the migration, the audit uses `source_run_observations` and checks that the number of direct links matches `source_runs.items_saved`. The report also checks:
 - request counts and outcomes in `api_request_log`;
 - observations grouped by keyword, market, and `comparison_group`;
 - duplicate observation identities, synthetic flags, and 0–100 value bounds;
-- matching `search_snapshots` count and representative observation rows.
+- `search_snapshots` as a time-window candidate count only (that table does not yet have run-level lineage).
 
-**Provenance limitation:** the current `source_observations` schema does not contain `run_id`. Until a schema migration adds a direct run foreign key, this script associates observations with a run using `source_name` and the run's `captured_at` time window. That is useful for a controlled single-run audit, but it is not proof of row-level run ownership when runs from the same source overlap. The audit report labels this method explicitly. Do not interpret `checks_consistent` as a substitute for direct `run_id` lineage.
+For historical runs with no association rows, the audit may display `source_name` + `captured_at` time-window candidates for diagnosis, but returns `legacy_unlinked`; these candidates are not treated as proof of run ownership. A historical run is not automatically linked merely because its timestamp matches.
+
 
 ## Validation status
 
