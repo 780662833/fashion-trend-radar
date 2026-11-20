@@ -258,3 +258,9 @@ def test_non_web_search_type_is_rejected_before_provider_call(tmp_path):
         )
 
     assert client.groups == []
+
+
+def test_optional_trendspyg_package_exports_expected_functions():
+    api = pytest.importorskip("trendspyg")
+    assert callable(api.download_google_trends_interest_over_time)
+    assert callable(api.download_google_trends_comparison)
