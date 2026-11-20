@@ -1,6 +1,6 @@
 # Provider-backed research collectors
 
-Updated: 2026-11-19
+Updated: 2026-11-20
 
 This implementation adds a guarded DataForSEO Google Trends collector, an Exolyt CSV schema inspector, and a conservative Scrapy public-page fetcher. It does not fabricate sample observations and does not bypass platform access controls.
 
@@ -160,3 +160,22 @@ This is important for Google Trends: indices from unrelated comparison groups mu
 | TikTok Display/Discovery API | Not implemented here | TikTok developer-app approvals, OAuth scopes, Discovery account entitlement |
 
 Do not start the full 297-task batch until the Kobe 9 / US DataForSEO task result has been fetched, Exolyt's actual export format has been inspected, and the public-page seed policy has been reviewed. No source should be represented as live-validated merely because its code exists.
+
+## DTK Embedded TikTok provider — experimental, opt-in
+
+The embedded provider imports a pinned subset of DTK 5.1.11 into the same
+Python process. It does not start a DTK API server or its PostgreSQL/Redis
+dependencies. See [TIKTOK_EMBEDDED_PROVIDER.md](TIKTOK_EMBEDDED_PROVIDER.md).
+
+Its anonymous guest allowlist is limited to post detail, author profile,
+public author posts, hashtag detail and posts under a hashtag. Keyword post
+search remains disabled because the pinned endpoint metadata marks that path
+as login-required. The provider sends no cookies and stores results in
+\`tiktok_content_candidates\` for review; it does not write directly into
+product scoring tables.
+
+This is a non-official public-web integration, not TikTok's Developer API.
+It is opt-in, preview-first and requires a current platform-terms and data-use
+review. A successful unit test or HTTP 200 is not proof of ongoing access
+rights or market representativeness.
+
