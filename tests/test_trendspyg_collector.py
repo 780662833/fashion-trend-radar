@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+from types import FunctionType, SimpleNamespace
 
 import pytest
 
@@ -13,6 +13,47 @@ from fashion_radar.db import connect, initialize
 from fashion_radar.source_store import ensure_source_tables
 
 PRODUCT_ID = "PILOT-KOBE-9"
+
+
+def _simulated_upstream_request():
+    method = _diagnostic_method
+    url = _diagnostic_url
+    response = _diagnostic_response
+    raise RuntimeError("simulated upstream RateLimitError")
+
+
+def _fake_upstream_rate_limit_error(method: str, endpoint: str) -> RuntimeError:
+    response = SimpleNamespace(
+        status_code=429,
+        headers={
+            "Date": "Fri, 20 Nov 2026 12:43:25 GMT",
+            "Retry-After": "300",
+            "Content-Type": "text/html; charset=UTF-8",
+            "Server": "gws",
+        },
+        text=(
+            "<html><body>429 Too Many Requests from 192.0.2.10 "
+            "contact user@example.com</body></html>"
+        ),
+    )
+    namespace = {
+        "__name__": "trendspyg.explore._http",
+        "_diagnostic_method": method,
+        "_diagnostic_url": "https://trends.google.com" + endpoint,
+        "_diagnostic_response": response,
+    }
+    code = _simulated_upstream_request.__code__.replace(
+        co_name="_request",
+        co_filename="/venv/Lib/site-packages/trendspyg/explore/_http.py",
+    )
+    request = FunctionType(code, namespace)
+    try:
+        request()
+    except RuntimeError as exc:
+        return exc
+    raise AssertionError("simulated request did not raise")
+
+
 
 
 def _database(path):
@@ -339,6 +380,7 @@ def test_optional_trendspyg_package_exports_expected_functions():
     assert callable(api.download_google_trends_comparison)
 
 
+
 @pytest.mark.parametrize(
     ("method", "endpoint"),
     [
@@ -351,38 +393,8 @@ def test_http_429_diagnostics_identify_endpoint_and_redact_response(method, endp
         _extract_trendspyg_http_diagnostics,
     )
 
-    namespace = {
-        "__name__": "trendspyg.explore._http",
-        "SimpleNamespace": SimpleNamespace,
-    }
-    code = compile(
-        """
-def _request():
-    method = METHOD
-    url = "https://trends.google.com" + ENDPOINT
-    response = SimpleNamespace(
-        status_code=429,
-        headers={
-            "Date": "Fri, 20 Nov 2026 12:43:25 GMT",
-            "Retry-After": "300",
-            "Content-Type": "text/html; charset=UTF-8",
-            "Server": "gws",
-        },
-        text=(
-            "<html><body>429 Too Many Requests from 192.0.2.10 "
-            "contact user@example.com</body></html>"
-        ),
-    )
-    raise RuntimeError("simulated upstream RateLimitError")
-""".replace("METHOD", repr(method)).replace("ENDPOINT", repr(endpoint)),
-        "/venv/Lib/site-packages/trendspyg/explore/_http.py",
-        "exec",
-    )
-    exec(code, namespace)
-    with pytest.raises(RuntimeError) as captured:
-        namespace["_request"]()
-
-    diagnostic = _extract_trendspyg_http_diagnostics(captured.value)
+    exc = _fake_upstream_rate_limit_error(method, endpoint)
+    diagnostic = _extract_trendspyg_http_diagnostics(exc)
 
     assert diagnostic is not None
     assert diagnostic["method"] == method
@@ -402,30 +414,10 @@ def test_collector_persists_upstream_http_diagnostics_on_failure(tmp_path):
 
     db = _database(tmp_path / "registry.sqlite")
     query_file = _query_file(tmp_path / "queries.csv")
-    namespace = {
-        "__name__": "trendspyg.explore._http",
-        "SimpleNamespace": SimpleNamespace,
-    }
-    code = compile(
-        """
-def _request():
-    method = "POST"
-    url = "https://trends.google.com/trends/api/explore"
-    response = SimpleNamespace(
-        status_code=429,
-        headers={"Retry-After": "300", "Date": "Fri, 20 Nov 2026 12:43:25 GMT"},
-        text="<html><body>Too Many Requests</body></html>",
-    )
-    raise RuntimeError("simulated HTTP 429")
-""",
-        "/venv/Lib/site-packages/trendspyg/explore/_http.py",
-        "exec",
-    )
-    exec(code, namespace)
 
     class DiagnosticRateLimitedClient:
         def fetch_group(self, group):
-            namespace["_request"]()
+            raise _fake_upstream_rate_limit_error("POST", "/trends/api/explore")
 
     result = collect_trendspyg_trends(
         db,
