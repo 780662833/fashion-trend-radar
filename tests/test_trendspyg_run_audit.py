@@ -94,6 +94,28 @@ def _database_with_run(tmp_path: Path, *, link_observation: bool) -> tuple[Path,
     return db, run_id
 
 
+def test_find_latest_run_id_selects_latest_trendspyg_run(tmp_path):
+    db, original_run_id = _database_with_run(tmp_path, link_observation=True)
+
+    with connect(db) as conn:
+        start_source_run(
+            conn,
+            "test-run-002",
+            "trendspyg_google_trends",
+            "US",
+            1,
+            {"provider": "trendspyg"},
+        )
+        conn.execute(
+            "UPDATE source_runs SET started_at=? WHERE run_id=?",
+            ("2026-11-20T10:00:00+00:00", "test-run-002"),
+        )
+        assert AUDIT_MODULE.find_latest_run_id(conn) == "test-run-002"
+        assert AUDIT_MODULE.find_latest_run_id(conn, "dataforseo_google_trends") is None
+
+    assert original_run_id == "test-run-001"
+
+
 def test_audit_uses_direct_run_observation_links(tmp_path):
     db, run_id = _database_with_run(tmp_path, link_observation=True)
 

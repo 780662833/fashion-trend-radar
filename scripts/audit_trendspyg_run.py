@@ -8,6 +8,8 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+TRENDSPYG_SOURCE_NAME = "trendspyg_google_trends"
+
 
 def _resolve_db_path(value: str) -> Path:
     path = Path(value).expanduser()
@@ -25,6 +27,24 @@ def _decode_json(value: str | None, fallback: Any) -> Any:
 
 def _rows_as_dicts(rows: list[sqlite3.Row]) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
+
+
+def find_latest_run_id(
+    conn: sqlite3.Connection,
+    source_name: str = TRENDSPYG_SOURCE_NAME,
+) -> str | None:
+    """Return the newest run for a source, including failed or partial runs."""
+    row = conn.execute(
+        """
+        SELECT run_id
+        FROM source_runs
+        WHERE source_name = ?
+        ORDER BY datetime(started_at) DESC, run_id DESC
+        LIMIT 1
+        """,
+        (source_name,),
+    ).fetchone()
+    return str(row[0]) if row is not None else None
 
 
 def audit_run(
@@ -332,7 +352,13 @@ def main() -> int:
         )
     )
     parser.add_argument("--db", default="data/registry.sqlite")
-    parser.add_argument("--run-id", required=True)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--run-id", help="Audit this exact source run ID.")
+    selection.add_argument(
+        "--latest",
+        action="store_true",
+        help="Audit the latest trendspyg_google_trends run in this database.",
+    )
     parser.add_argument(
         "--expected-points-per-keyword",
         type=int,
@@ -360,12 +386,25 @@ def main() -> int:
         conn = sqlite3.connect(db_uri, uri=True)
         conn.row_factory = sqlite3.Row
         try:
-            result = audit_run(
-                conn,
-                args.run_id,
-                expected_points_per_keyword=args.expected_points_per_keyword,
-                sample_limit=args.sample_limit,
+            selected_run_id = (
+                find_latest_run_id(conn) if args.latest else args.run_id
             )
+            if selected_run_id is None:
+                result = {
+                    "status": "not_found",
+                    "run_id": None,
+                    "error": (
+                        "No source_runs row was found for "
+                        f"{TRENDSPYG_SOURCE_NAME!r}."
+                    ),
+                }
+            else:
+                result = audit_run(
+                    conn,
+                    selected_run_id,
+                    expected_points_per_keyword=args.expected_points_per_keyword,
+                    sample_limit=args.sample_limit,
+                )
         finally:
             conn.close()
     except (OSError, sqlite3.Error, RuntimeError) as exc:
