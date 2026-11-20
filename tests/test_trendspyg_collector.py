@@ -444,9 +444,9 @@ def _request():
     assert diagnostic["comparison_group"].startswith("trendspyg_")
     with connect(db) as conn:
         row = conn.execute(
-            "SELECT metadata,errors FROM source_runs WHERE run_id=?",
+            "SELECT metadata_json,errors_json FROM source_runs WHERE run_id=?",
             (result["run_id"],),
         ).fetchone()
-    metadata = json.loads(row["metadata"])
+    metadata = json.loads(row["metadata_json"])
     assert metadata["request_diagnostics"][0]["endpoint"] == "/trends/api/explore"
-    assert "/trends/api/explore" in row["errors"]
+    assert "/trends/api/explore" in row["errors_json"]
