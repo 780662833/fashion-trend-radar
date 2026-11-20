@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import sys
 import uuid
-from dataclasses import replace
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
@@ -45,7 +45,6 @@ def _load_dtk_modules() -> dict[str, Any]:
     try:
         import dtk
         from dtk.core.types import BrowserFamily, Platform
-        from dtk.platforms.base import ClientProfile
         from dtk.platforms.tiktok.adapter import ADAPTER
         from dtk.platforms.tiktok.endpoints import (
             AUTHOR_POSTS,
@@ -81,7 +80,6 @@ def _load_dtk_modules() -> dict[str, Any]:
         )
     return {
         "BrowserFamily": BrowserFamily,
-        "LoginNeed": LoginNeed,
         "Platform": Platform,
         "ADAPTER": ADAPTER,
         "AUTHOR_POSTS": AUTHOR_POSTS,
@@ -89,7 +87,6 @@ def _load_dtk_modules() -> dict[str, Any]:
         "CONTENT_DETAIL": CONTENT_DETAIL,
         "HASHTAG_DETAIL": HASHTAG_DETAIL,
         "HASHTAG_POSTS": HASHTAG_POSTS,
-        "ClientProfile": ClientProfile,
         "SigningRequestSpec": SigningRequestSpec,
         "SigningSession": SigningSession,
         "StaticFingerprint": StaticFingerprint,

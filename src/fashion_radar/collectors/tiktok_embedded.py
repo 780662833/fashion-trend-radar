@@ -316,6 +316,9 @@ def collect_tiktok_embedded(
     """Collect guest-accessible content into an unscored manual-review queue."""
     initialize(db_path)
     seeds = load_seed_plan(seed_file, db_path)
+    daily_budget = _daily_budget()
+    min_interval = _min_interval()
+    per_run_budget = _per_run_budget()
     run_id = str(uuid4())
     errors: list[str] = []
     items_seen = 0
@@ -346,49 +349,55 @@ def collect_tiktok_embedded(
             },
         )
         guard = _SQLiteRequestGuard(
-            conn, run_id, _daily_budget(), _min_interval()
+            conn, run_id, daily_budget, min_interval
         )
         actual_client: SeedClient | None = client
 
         async def run_seeds() -> None:
             nonlocal items_seen, items_saved
-            if actual_client is None:
-                raise RuntimeError("TikTok embedded client was not initialized")
-            for seed in seeds:
-                try:
-                    items = await actual_client.fetch_seed(
-                        seed.seed_type,
-                        seed.seed_value,
-                        seed.market_code,
-                        seed.max_items,
-                    )
-                    items_seen += len(items)
-                    for item in items:
-                        if _persist_candidate(
-                            conn, run_id, seed, item, observed_at
-                        ):
-                            items_saved += 1
-                except QuotaBudgetExceeded as exc:
-                    errors.append(str(exc))
-                    break
-                except Exception as exc:
-                    code = getattr(exc, "error_code", type(exc).__name__)
-                    errors.append(
-                        seed.market_code
-                        + "/"
-                        + seed.seed_type
-                        + "/"
-                        + seed.seed_value
-                        + ": "
-                        + str(code)
-                    )
+            try:
+                if actual_client is None:
+                    raise RuntimeError("TikTok embedded client was not initialized")
+                for seed in seeds:
+                    try:
+                        items = await actual_client.fetch_seed(
+                            seed.seed_type,
+                            seed.seed_value,
+                            seed.market_code,
+                            seed.max_items,
+                        )
+                        items_seen += len(items)
+                        for item in items:
+                            if _persist_candidate(
+                                conn, run_id, seed, item, observed_at
+                            ):
+                                items_saved += 1
+                    except QuotaBudgetExceeded as exc:
+                        errors.append(str(exc))
+                        break
+                    except Exception as exc:
+                        code = getattr(exc, "error_code", type(exc).__name__)
+                        errors.append(
+                            seed.market_code
+                            + "/"
+                            + seed.seed_type
+                            + "/"
+                            + seed.seed_value
+                            + ": "
+                            + str(code)
+                        )
+            finally:
+                # Close the wreq transport in the same event loop that used it.
+                close = getattr(actual_client, "aclose", None)
+                if owned_client and close is not None:
+                    await close()
 
         try:
             if actual_client is None:
                 actual_client = DTKEmbeddedClient(
                     request_guard=guard,
                     proxy_url=os.getenv("TIKTOK_PROXY_URL") or None,
-                    max_requests_per_run=_per_run_budget(),
+                    max_requests_per_run=per_run_budget,
                 )
             asyncio.run(run_seeds())
             requests_made = guard.requests_made
@@ -403,14 +412,6 @@ def collect_tiktok_embedded(
             )
             requests_made = guard.requests_made
             status = "partial" if items_saved else "failed"
-        finally:
-            close = getattr(actual_client, "aclose", None)
-            if owned_client and close is not None:
-                try:
-                    asyncio.run(close())
-                except Exception as exc:
-                    errors.append("close_" + type(exc).__name__)
-                    status = "partial" if items_saved else "failed"
 
         finish_source_run(
             conn,

@@ -146,3 +146,37 @@ def test_optional_provider_module_import_does_not_require_dtk():
     from fashion_radar.providers.tiktok import DTKEmbeddedClient
 
     assert DTKEmbeddedClient.__name__ == "DTKEmbeddedClient"
+
+
+def test_pinned_dtk_client_constructs_offline_on_supported_python():
+    import asyncio
+    import sys
+
+    if sys.version_info < (3, 12) or sys.version_info >= (3, 14):
+        pytest.skip("the optional DTK extra supports Python 3.12 and 3.13")
+
+    from dtk.platforms.tiktok.endpoints import SEARCH_POSTS
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        DTKEmbeddedClient,
+        GUEST_ENDPOINTS,
+        _load_dtk_modules,
+    )
+
+    modules = _load_dtk_modules()
+    adapter = modules["ADAPTER"]
+    assert adapter.platform.value == "tiktok"
+
+    for endpoint in GUEST_ENDPOINTS:
+        spec = adapter.endpoints.specs[endpoint]
+        assert getattr(spec.login_for({}), "value", None) == "none"
+        assert not spec.session_bound
+
+    search_spec = adapter.endpoints.specs[SEARCH_POSTS]
+    assert getattr(
+        search_spec.login_for({"keyword": "basketball shoes"}), "value", None
+    ) == "required"
+
+    client = DTKEmbeddedClient(max_requests_per_run=1)
+    assert client.identity_mode == "anonymous_guest_no_cookies"
+    assert client.requests_made == 0
+    asyncio.run(client.aclose())
