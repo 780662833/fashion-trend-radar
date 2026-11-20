@@ -66,6 +66,32 @@ CLI overrides:
 
 Do not raise these limits to evade restrictions or continue after Google refuses a request.
 
+## HTTP 403/429 diagnostics
+
+The collector pins `trendspyg==1.9.0` and uses its direct HTTP engine. That
+version raises `RateLimitError` without attaching the underlying HTTP response.
+For 403/429 exceptions, the adapter therefore reads only the retained
+`trendspyg.explore._http._request` traceback frame and copies an allowlist of
+diagnostic fields into the run result, `source_runs.metadata.request_diagnostics`,
+and the run error text:
+
+- HTTP method and endpoint path (never query parameters);
+- status code, response Date, Retry-After, Content-Type, and Server;
+- a response-text excerpt capped at 240 characters after HTML stripping and
+  email/IP/URL redaction;
+- names of configured HTTP(S) proxy environment variables (never their values),
+  requests' `trust_env` flag, and whether a session object was created.
+
+The proxy fields describe local configuration, not proof of the network route
+or the proxy's exit IP. Session creation does not prove that Google issued a
+usable cookie. Raw headers, cookies, credentials, full response bodies, and
+query-string values are never persisted. If a future upstream version changes
+its traceback layout, diagnostics are omitted rather than guessed.
+
+These diagnostics are observational only. They do not retry, rotate identities,
+change cookies, alter proxy settings, or bypass Google controls. A 429 remains
+a terminal failure for the run.
+
 ## Comparability and normalization rules
 
 Google Trends reports relative interest on a 0–100 scale, not absolute search volume.

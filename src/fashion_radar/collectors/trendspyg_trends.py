@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+import html
+import json
 import os
+import re
 import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from uuid import uuid4
 
 from ..db import connect, initialize
@@ -23,6 +26,95 @@ from .dataforseo_trends import TrendQueryGroup, load_query_plan
 
 SOURCE_NAME = "trendspyg_google_trends"
 PROVIDER = "trendspyg"
+
+
+
+def _clean_http_response_excerpt(value: Any, *, limit: int = 240) -> str | None:
+    """Return a short, redacted text excerpt; never persist raw HTML or identifiers."""
+    if not isinstance(value, str) or not value:
+        return None
+    cleaned = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", value)
+    cleaned = re.sub(r"(?s)<[^>]+>", " ", cleaned)
+    cleaned = html.unescape(cleaned)
+    cleaned = re.sub(r"https?://\S+", "[url]", cleaned)
+    cleaned = re.sub(
+        r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
+        "[redacted-email]",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[redacted-ip]", cleaned)
+    cleaned = " ".join(cleaned.split())
+    return cleaned[:limit] or None
+
+
+def _extract_trendspyg_http_diagnostics(exc: BaseException) -> dict[str, Any] | None:
+    """Read safe request context from trendspyg 1.9.0's retained _request traceback.
+
+    trendspyg 1.9.0 raises RateLimitError without attaching its Response. The
+    traceback still retains the upstream _request frame and its method, URL,
+    and response locals. Only allowlisted fields are copied; headers, cookies,
+    proxy values, and the full response body are never persisted.
+    """
+    current: BaseException | None = exc
+    while current is not None:
+        tb = current.__traceback__
+        while tb is not None:
+            frame = tb.tb_frame
+            if (
+                frame.f_code.co_name == "_request"
+                and frame.f_globals.get("__name__") == "trendspyg.explore._http"
+            ):
+                local = frame.f_locals
+                url = local.get("url")
+                response = local.get("response")
+                if not isinstance(url, str):
+                    return None
+                parsed = urlsplit(url)
+                if parsed.hostname != "trends.google.com":
+                    return None
+
+                headers = getattr(response, "headers", {}) or {}
+
+                def header(
+                    name: str, max_length: int = 160, _headers: Any = headers
+                ) -> str | None:
+                    value = _headers.get(name) if hasattr(_headers, "get") else None
+                    if value is None and hasattr(_headers, "get"):
+                        value = _headers.get(name.lower())
+                    if value is None:
+                        return None
+                    return str(value)[:max_length]
+
+                body = getattr(response, "text", None)
+                session = frame.f_globals.get("_session")
+                proxy_env_vars = [
+                    name
+                    for name in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")
+                    if os.environ.get(name)
+                ]
+                return {
+                    "method": str(local.get("method", "unknown")).upper()[:10],
+                    "endpoint": parsed.path[:200],
+                    "status_code": getattr(response, "status_code", None),
+                    "response_date": header("Date"),
+                    "retry_after": header("Retry-After"),
+                    "content_type": header("Content-Type", 100),
+                    "server": header("Server", 100),
+                    "response_body_excerpt": _clean_http_response_excerpt(body),
+                    "proxy_env_vars_present": proxy_env_vars,
+                    "requests_session_trust_env": (
+                        bool(session.trust_env)
+                        if session is not None and hasattr(session, "trust_env")
+                        else None
+                    ),
+                    "session_object_created": session is not None,
+                }
+            tb = tb.tb_next
+        current = current.__cause__ or current.__context__
+    return None
+
+
 
 
 class TrendspygError(RuntimeError):
@@ -287,6 +379,7 @@ def collect_trendspyg_trends(
     points_seen = 0
     requests_completed = 0
     errors: list[str] = []
+    request_diagnostics: list[dict[str, Any]] = []
     attempted_at = 0.0
     with connect(db_path) as conn:
         ensure_source_tables(conn)
@@ -355,7 +448,21 @@ def collect_trendspyg_trends(
             except Exception as exc:  # noqa: BLE001 - stop on any provider/client failure
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
-                errors.append(f"{group.comparison_group}: {type(exc).__name__}: {exc}")
+                diagnostic = _extract_trendspyg_http_diagnostics(exc)
+                diagnostic_suffix = ""
+                if diagnostic is not None:
+                    diagnostic["comparison_group"] = group.comparison_group.replace(
+                        "dataforseo_", "trendspyg_", 1
+                    )
+                    request_diagnostics.append(diagnostic)
+                    diagnostic_suffix = (
+                        "; http_diagnostics="
+                        + json.dumps(diagnostic, ensure_ascii=True, sort_keys=True)
+                    )
+                errors.append(
+                    f"{group.comparison_group}: {type(exc).__name__}: {exc}"
+                    f"{diagnostic_suffix}"
+                )
                 # Any upstream/network/parser failure stops this run; no retries or rotation.
                 break
         status = "success" if not errors else ("partial" if saved_total else "failed")
@@ -372,6 +479,7 @@ def collect_trendspyg_trends(
                 "requests_completed": requests_completed,
                 "observations_saved": saved_total,
                 "missing_points": missing_total,
+                "request_diagnostics": request_diagnostics,
             },
         )
     return {
@@ -384,6 +492,7 @@ def collect_trendspyg_trends(
         "missing_points": missing_total,
         "error_count": len(errors),
         "errors": errors,
+        "request_diagnostics": request_diagnostics,
         "note": (
             "trendspyg is a non-official public-web integration, not Google's official API. "
             "Google 0-100 values are comparable only within the same comparison_group."
