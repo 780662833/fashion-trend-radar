@@ -11,7 +11,9 @@ This document distinguishes working collection paths from manual research and un
 | YouTube | YouTube Data API v3 search.list + videos.list | Implemented; requires user API key | Query region, request time, source URL and metric snapshot are recorded |
 | TikTok Creative Center | Human capture by country and time window | Manual capture supported | Save market, ranking period, visible metric, page URL and at least one supporting video URL |
 | TikTok DTK embedded | Explicitly enabled guest-only public-web adapter | Experimental; live access not yet validated | No login cookies; allowlisted endpoints only; research market is not audience geography; terms review required |
-| Google Trends | Trends UI CSV/manual capture | Manual capture supported | Same query group, country, date window and search type must be preserved |
+| Google Trends UI | Trends UI CSV/manual capture | Manual capture supported | Same query group, country, date window and search type must be preserved |
+| DataForSEO Google Trends | DataForSEO Google Trends Standard tasks + asynchronous result retrieval | Implemented; opt-in and requires a paid provider account | Preserve task ID, comparison group, date window, cost and request log; accept only after results are fetched and persisted |
+| Trendspyg Google Trends | Third-party library over Google's public web endpoints | Experimental; one successful US pilot on 2026-11-20 (2/2 requests, 186 points, 465 observation rows); not an official API | Fail-stop on refusal; no cookies, retries or identity rotation; keep separate from UI exports and other comparison groups |
 | Reddit | No connector in this phase | Not implemented | OAuth and written use-case review required before enabling |
 | Instagram | Human observation or licensed provider import | Not automated | Do not use unofficial scraping |
 | Pinterest Trends | Human observation or approved API access | Not automated | API access and historical limitations must be checked first |
@@ -106,9 +108,19 @@ When product_id is supplied, a validated Google Trends row is also inserted into
 
 ### Optional trendspyg provider
 
-The repository also contains an opt-in experimental connector described in docs/TRENDSPYG_PROVIDER.md. It calls Google Trends public web endpoints through a third-party library; it is **not** an official Google API. It can be refused or rate-limited. No browser, login cookies, automatic retry or identity rotation is used. Live requests require two explicit CLI flags. CI tests are mocked and do not establish live availability. Always review the current Google Terms of Service and data-use rights before enabling it.
+The repository also contains an opt-in experimental connector described in docs/TRENDSPYG_PROVIDER.md. It calls Google Trends public web endpoints through a third-party library; it is **not** an official Google API. A single US pilot succeeded on 2026-11-20, but this does not establish ongoing availability, authorization for unrestricted collection, or coverage of CA/GB. It can be refused or rate-limited. No browser, login cookies, automatic retry or identity rotation is used. Live requests require two explicit CLI flags. Always review the current Google Terms of Service and data-use rights before enabling it.
 
 Google announced its Trends API as an alpha program with application-based early access. Do not assume general API access is available.
+
+## Provider coverage identifiers
+
+The general coverage audit reports Google Trends UI, DataForSEO and Trendspyg as three separate source IDs:
+
+- `google_trends_ui`: researcher-exported CSV from the public Trends UI.
+- `dataforseo_google_trends`: observations returned by the DataForSEO provider after task results are fetched.
+- `trendspyg_google_trends`: observations returned by the opt-in, non-official trendspyg public-web adapter.
+
+The default coverage gate still requires `google_trends_ui`; provider observations do not get relabelled as UI captures. To use a provider in a pilot gate, explicitly select its source ID with `scripts/audit_source_coverage.py --required-sources`. See docs/SOURCE_COVERAGE_AUDIT.md.
 
 ## Run-level validation and data quality
 
