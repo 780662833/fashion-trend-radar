@@ -20,6 +20,7 @@ dependencies = [
 warehouse = ["polars>=1.0,<2", "duckdb>=1.0,<2"]
 app = ["streamlit>=1.37,<2"]
 research-crawl = ["scrapy>=2.20,<3"]
+trendspyg = ["trendspyg==1.9.0"]
 dev = ["pytest>=8,<10", "ruff>=0.6,<1"]
 
 [project.scripts]

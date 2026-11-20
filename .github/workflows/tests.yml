@@ -26,8 +26,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install package and test dependencies
-        run: python -m pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev,trendspyg]"
       - name: Run tests
         run: python -m pytest -q
+      - name: Run Ruff
+        run: python -m ruff check src/fashion_radar/collectors/trendspyg_trends.py tests/test_trendspyg_collector.py scripts/collect_trendspyg_trends.py
       - name: Compile project modules
         run: python -m compileall -q src app scripts tests
