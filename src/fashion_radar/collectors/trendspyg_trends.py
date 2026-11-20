@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import time
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -115,7 +114,7 @@ def normalize_trendspyg_points(
     """Normalize one group; each group keeps its own Google 0-100 scale."""
     if not points:
         raise TrendspygError("trendspyg returned no Google Trends time-series points")
-    capture_time = captured_at or datetime.now(timezone.utc).isoformat()
+    capture_time = captured_at or datetime.now(UTC).isoformat()
     comparison_group = group.comparison_group.replace("dataforseo_", "trendspyg_", 1)
     scale_kind = "shared_comparison_group" if len(group.keywords) > 1 else "single_keyword_series"
     source_url = "https://trends.google.com/trends/explore?" + urlencode({
@@ -295,8 +294,10 @@ def collect_trendspyg_trends(
                 "search_interest",
                 "google_trends",
                 "non_official_public_web_library",
-                "Experimental opt-in only; not an official Google API; no login cookies, "
-                "browser fallback, retries or access-control circumvention.",
+                (
+                    "Experimental opt-in only; not an official Google API; no login cookies, "
+                    "browser fallback, retries or access-control circumvention."
+                ),
             ),
         )
         start_source_run(
@@ -346,7 +347,7 @@ def collect_trendspyg_trends(
             except QuotaBudgetExceeded as exc:
                 errors.append(str(exc))
                 break
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - stop on any provider/client failure
                 if request_id is not None:
                     finish_api_request(conn, request_id, False, type(exc).__name__)
                 errors.append(f"{group.comparison_group}: {type(exc).__name__}: {exc}")
