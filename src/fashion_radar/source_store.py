@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
@@ -12,7 +12,7 @@ class QuotaBudgetExceeded(RuntimeError):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def ensure_source_tables(conn) -> None:
@@ -236,8 +236,8 @@ def purge_expired_youtube_references(conn, now: datetime | None = None) -> int:
     """Delete public YouTube API reference rows once their 30-day retention expires."""
     instant = now or utc_now()
     if instant.tzinfo is None:
-        instant = instant.replace(tzinfo=timezone.utc)
-    cutoff = instant.astimezone(timezone.utc).isoformat()
+        instant = instant.replace(tzinfo=UTC)
+    cutoff = instant.astimezone(UTC).isoformat()
     cursor = conn.execute(
         "DELETE FROM youtube_video_references WHERE expires_at<=?",
         (cutoff,),
