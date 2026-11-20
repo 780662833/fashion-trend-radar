@@ -4,7 +4,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from fashion_radar.collectors.dataforseo_trends import load_query_plan
 from fashion_radar.collectors.trendspyg_trends import (
     TrendspygClient,
     collect_trendspyg_trends,
@@ -149,9 +148,9 @@ class FakeTrendspygClient:
 
     def fetch_group(self, group):
         self.groups.append(group)
-        date = "2026-11-18T00:00:00+00:00"
+        point_date = "2026-11-18T00:00:00+00:00"
         return [{
-            "date": date,
+            "date": point_date,
             "values": {
                 keyword: (0 if keyword == "Kobe 9 EM Low Protro Philippines" else 75)
                 for keyword in group.keywords
@@ -171,6 +170,7 @@ def test_collect_persists_provenance_and_isolates_comparison_groups(tmp_path):
 
     assert result["status"] == "success"
     assert result["planned_requests"] == 2
+    assert result["requests_completed"] == 2
     assert result["observations_saved"] == 3
     assert len(client.groups) == 2
     with connect(db) as conn:
