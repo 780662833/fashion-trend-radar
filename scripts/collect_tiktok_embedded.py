@@ -104,6 +104,7 @@ def main() -> int:
                 "items_saved": result.items_saved,
                 "requests_made": result.requests_made,
                 "errors": result.errors,
+                "network_diagnostics": result.network_diagnostics,
             },
             ensure_ascii=False,
             indent=2,
