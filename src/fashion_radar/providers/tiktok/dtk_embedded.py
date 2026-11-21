@@ -535,7 +535,7 @@ class DTKEmbeddedClient:
         endpoint = self._endpoints["content_detail"]
         payload = await self._request_json(endpoint, market_code, item_id=content_id)
         content = self._adapter.parse_content(
-            payload, fetched_at=datetime.now(timezone.utc)
+            payload, fetched_at=datetime.now(UTC)
         )
         return _content_record(content)
 
@@ -570,7 +570,7 @@ class DTKEmbeddedClient:
                 count=min(20, remaining),
             )
             page = self._adapter.parse_author_posts(
-                payload, fetched_at=datetime.now(timezone.utc)
+                payload, fetched_at=datetime.now(UTC)
             )
             items.extend(_content_record(item) for item in page.items)
             if len(items) >= max_items or not page.has_more or not page.cursor:
@@ -611,7 +611,7 @@ class DTKEmbeddedClient:
                 count=min(20, remaining),
             )
             page = self._adapter.parse_hashtag_posts(
-                payload, fetched_at=datetime.now(timezone.utc)
+                payload, fetched_at=datetime.now(UTC)
             )
             items.extend(_content_record(item) for item in page.items)
             if len(items) >= max_items or not page.has_more or not page.cursor:
