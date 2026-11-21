@@ -372,6 +372,7 @@ def test_collection_persists_only_sanitized_network_diagnostics(tmp_path):
     metadata = json.loads(source["metadata_json"])
     assert metadata["network_diagnostics"] == result.network_diagnostics
 
+
 def test_pinned_dtk_timeout_names_are_classified_without_importing_dtk():
     from fashion_radar.providers.tiktok.dtk_embedded import (
         _diagnose_network_exception,
