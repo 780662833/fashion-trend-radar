@@ -16,8 +16,8 @@ from uuid import uuid4
 from ..db import connect, initialize
 from ..providers.tiktok.dtk_embedded import (
     DTK_SOURCE_COMMIT,
-    DTKEmbeddedClient,
     EXPECTED_DTK_VERSION,
+    DTKEmbeddedClient,
 )
 from ..source_store import (
     QuotaBudgetExceeded,
