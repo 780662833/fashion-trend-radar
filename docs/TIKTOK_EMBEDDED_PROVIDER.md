@@ -120,6 +120,29 @@ The CSV market_code is the market context used to plan the seed and configure re
 
 All content starts with link_status=needs_review. suggested_product_id is a human review hint, not a confirmed product match. The collector does not create social_signals or metric_snapshots and therefore cannot change product scores. A later review process must confirm exact product identity, rights to retain the data and any market attribution before promoting a record into scoring.
 
+## Failure diagnostics
+
+Failed collection output includes a `network_diagnostics` array, and the same records
+are stored in `source_runs.metadata_json`. Each record contains only:
+
+- `diagnostic_version`;
+- `connection_stage` (`dns`, `tcp`, `tls`, `http`, `transport`, `unknown` or `not_started`);
+- `exception_type` (the bounded Python exception class name, or null for an HTTP status);
+- `error_code` (a stable, short classification);
+- `retryable` (a diagnostic hint only).
+
+The provider follows the pinned DTK transport's `TransportFailure.cause` and
+Python exception chain. It classifies DNS, socket/TCP, TLS and known timeout
+exceptions only when their types or numeric error codes provide explicit
+evidence. A generic `ConnectionError` remains `unknown`; elapsed time alone is
+not used to infer a connection phase. HTTP responses are reported as `http`,
+not as socket failures.
+
+Diagnostic records never include exception messages, request URLs, query strings,
+headers, cookies, proxy credentials or response bodies. The `retryable` flag
+does not trigger retries: this integration still makes no automatic retries,
+account rotations or proxy changes.
+
 ## Data and privacy
 
 The integration stores normalized public content fields and visible counters, not the complete raw response. Creator IDs are hashed before persistence; the visible creator handle is kept for research review. Do not add sensitive personal data or use this feature to profile private individuals.
