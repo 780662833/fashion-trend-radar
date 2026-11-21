@@ -348,11 +348,23 @@ def collect_tiktok_embedded(
             "not_started",
         }
         if (
-            version != 1
+            type(version) is not int
+            or version != 1
+            or not isinstance(stage, str)
             or stage not in allowed_stages
             or not isinstance(error_code, str)
             or len(error_code) > 80
-            or (exception_type is not None and not isinstance(exception_type, str))
+            or not error_code.isascii()
+            or not all(char.isalnum() or char == "_" for char in error_code)
+            or (
+                exception_type is not None
+                and (
+                    not isinstance(exception_type, str)
+                    or len(exception_type) > 80
+                    or not exception_type.isascii()
+                    or not all(char.isalnum() or char in "._" for char in exception_type)
+                )
+            )
             or type(retryable) is not bool
         ):
             return
