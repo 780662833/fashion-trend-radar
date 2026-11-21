@@ -7,7 +7,7 @@ import json
 import os
 import sqlite3
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
@@ -55,6 +55,7 @@ class TikTokCollectionResult:
     items_saved: int
     errors: list[str]
     requests_made: int
+    network_diagnostics: list[dict[str, Any]] = field(default_factory=list)
 
 
 class SeedClient(Protocol):
@@ -321,11 +322,49 @@ def collect_tiktok_embedded(
     per_run_budget = _per_run_budget()
     run_id = str(uuid4())
     errors: list[str] = []
+    network_diagnostics: list[dict[str, Any]] = []
     items_seen = 0
     items_saved = 0
     observed_at = datetime.now(timezone.utc).isoformat()
     requests_made = 0
     owned_client = client is None
+
+    def capture_diagnostic(exc: BaseException) -> None:
+        raw = getattr(exc, "diagnostic", None)
+        if not isinstance(raw, dict):
+            return
+        stage = raw.get("connection_stage")
+        error_code = raw.get("error_code")
+        exception_type = raw.get("exception_type")
+        retryable = raw.get("retryable")
+        version = raw.get("diagnostic_version")
+        allowed_stages = {
+            "dns",
+            "tcp",
+            "tls",
+            "http",
+            "transport",
+            "unknown",
+            "not_started",
+        }
+        if (
+            version != 1
+            or stage not in allowed_stages
+            or not isinstance(error_code, str)
+            or len(error_code) > 80
+            or (exception_type is not None and not isinstance(exception_type, str))
+            or type(retryable) is not bool
+        ):
+            return
+        network_diagnostics.append(
+            {
+                "diagnostic_version": 1,
+                "connection_stage": stage,
+                "exception_type": exception_type,
+                "error_code": error_code,
+                "retryable": retryable,
+            }
+        )
 
     with connect(db_path) as conn:
         ensure_source_tables(conn)
@@ -376,6 +415,7 @@ def collect_tiktok_embedded(
                         errors.append(str(exc))
                         break
                     except Exception as exc:
+                        capture_diagnostic(exc)
                         code = getattr(exc, "error_code", type(exc).__name__)
                         errors.append(
                             seed.market_code
@@ -407,6 +447,7 @@ def collect_tiktok_embedded(
                 else ("partial" if items_saved else "failed")
             )
         except Exception as exc:
+            capture_diagnostic(exc)
             errors.append(
                 getattr(exc, "error_code", type(exc).__name__)
             )
@@ -425,6 +466,7 @@ def collect_tiktok_embedded(
                 "items_pending_product_review": items_saved,
                 "identity_mode": "anonymous_guest_no_cookies",
                 "audience_geo_available": False,
+                "network_diagnostics": network_diagnostics,
             },
         )
 
@@ -436,6 +478,7 @@ def collect_tiktok_embedded(
         items_saved=items_saved,
         errors=errors,
         requests_made=requests_made,
+        network_diagnostics=network_diagnostics,
     )
 
 
