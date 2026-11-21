@@ -209,11 +209,8 @@ def _load_dtk_modules() -> dict[str, Any]:
         from dtk.signing.base import RequestSpec as SigningRequestSpec
         from dtk.signing.base import SigningSession, StaticFingerprint
         from dtk.signing.native.signer import NativeSigner
-        from dtk.transport.base import (
-            Fingerprint,
-            RequestSpec as TransportRequestSpec,
-            TransportIdentity,
-        )
+        from dtk.transport.base import Fingerprint, TransportIdentity
+        from dtk.transport.base import RequestSpec as TransportRequestSpec
         from dtk.transport.emulation import known_majors
         from dtk.transport.wreq_transport import WreqTransport
     except ImportError as exc:
@@ -268,7 +265,7 @@ def _content_record(content: Any) -> dict[str, Any]:
     if isinstance(created_at, datetime):
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=UTC)
-        published_at = created_at.astimezone(timezone.utc).isoformat()
+        published_at = created_at.astimezone(UTC).isoformat()
     else:
         published_at = str(created_at) if created_at else None
 
