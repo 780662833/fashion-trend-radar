@@ -14,8 +14,8 @@ from fashion_radar.collectors.tiktok_embedded import (
     load_seed_plan,
 )
 from fashion_radar.db import connect, initialize
-from fashion_radar.source_store import ensure_source_tables
 from fashion_radar.providers.tiktok.dtk_embedded import TikTokEmbeddedError
+from fashion_radar.source_store import ensure_source_tables
 
 
 class FailingGuestClient:
@@ -231,7 +231,6 @@ def test_pinned_dtk_client_constructs_offline_on_supported_python():
     asyncio.run(sign_one_request_without_network())
 
 
-
 @pytest.mark.parametrize(
     ("exception", "stage", "error_code", "retryable"),
     [
@@ -372,3 +371,22 @@ def test_collection_persists_only_sanitized_network_diagnostics(tmp_path):
         ).fetchone()
     metadata = json.loads(source["metadata_json"])
     assert metadata["network_diagnostics"] == result.network_diagnostics
+
+def test_pinned_dtk_timeout_names_are_classified_without_importing_dtk():
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        _diagnose_network_exception,
+    )
+
+    class ConnectTimeout(Exception):
+        pass
+
+    class ReadTimeout(Exception):
+        pass
+
+    connect = _diagnose_network_exception(ConnectTimeout("connect phase timed out"))
+    read = _diagnose_network_exception(ReadTimeout("response read timed out"))
+
+    assert connect["connection_stage"] == "tcp"
+    assert connect["error_code"] == "connect_timeout"
+    assert read["connection_stage"] == "transport"
+    assert read["error_code"] == "read_timeout"
