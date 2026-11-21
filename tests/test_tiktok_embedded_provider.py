@@ -177,9 +177,10 @@ def test_pinned_dtk_client_constructs_offline_on_supported_python():
         pytest.skip("the optional DTK extra supports Python 3.12 and 3.13")
 
     from dtk.platforms.tiktok.endpoints import SEARCH_POSTS
+
     from fashion_radar.providers.tiktok.dtk_embedded import (
-        DTKEmbeddedClient,
         GUEST_ENDPOINTS,
+        DTKEmbeddedClient,
         _load_dtk_modules,
     )
 
