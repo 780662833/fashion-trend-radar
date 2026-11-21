@@ -8,7 +8,7 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import uuid4
@@ -325,7 +325,7 @@ def collect_tiktok_embedded(
     network_diagnostics: list[dict[str, Any]] = []
     items_seen = 0
     items_saved = 0
-    observed_at = datetime.now(timezone.utc).isoformat()
+    observed_at = datetime.now(UTC).isoformat()
     requests_made = 0
     owned_client = client is None
 
@@ -426,7 +426,7 @@ def collect_tiktok_embedded(
                     except QuotaBudgetExceeded as exc:
                         errors.append(str(exc))
                         break
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001 - per-seed isolation records all provider failures
                         capture_diagnostic(exc)
                         code = getattr(exc, "error_code", type(exc).__name__)
                         errors.append(
@@ -458,7 +458,7 @@ def collect_tiktok_embedded(
                 if not errors
                 else ("partial" if items_saved else "failed")
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - ensure a failed run is finalized with diagnostics
             capture_diagnostic(exc)
             errors.append(
                 getattr(exc, "error_code", type(exc).__name__)
