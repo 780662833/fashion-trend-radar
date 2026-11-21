@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import errno
+import json
+import socket
+import ssl
 from pathlib import Path
 
 import pytest
@@ -10,7 +14,24 @@ from fashion_radar.collectors.tiktok_embedded import (
     load_seed_plan,
 )
 from fashion_radar.db import connect, initialize
+from fashion_radar.providers.tiktok.dtk_embedded import TikTokEmbeddedError
 from fashion_radar.source_store import ensure_source_tables
+
+
+class FailingGuestClient:
+    async def fetch_seed(self, seed_type, seed_value, market_code, max_items):
+        diagnostic = {
+            "diagnostic_version": 1,
+            "connection_stage": "dns",
+            "exception_type": "gaierror",
+            "error_code": "dns_temporary_failure",
+            "retryable": True,
+        }
+        raise TikTokEmbeddedError(
+            "Embedded TikTok request failed: dns_temporary_failure.",
+            "dns_temporary_failure",
+            diagnostic=diagnostic,
+        )
 
 
 class FakeGuestClient:
@@ -209,3 +230,165 @@ def test_pinned_dtk_client_constructs_offline_on_supported_python():
             await client.aclose()
 
     asyncio.run(sign_one_request_without_network())
+
+
+@pytest.mark.parametrize(
+    ("exception", "stage", "error_code", "retryable"),
+    [
+        pytest.param(
+            socket.gaierror(socket.EAI_AGAIN, "temporary DNS lookup failure"),
+            "dns",
+            "dns_temporary_failure",
+            True,
+            id="temporary-dns",
+        ),
+        pytest.param(
+            socket.gaierror(socket.EAI_NONAME, "DNS name not found"),
+            "dns",
+            "dns_resolution_failed",
+            False,
+            id="permanent-dns",
+        ),
+        pytest.param(
+            ConnectionRefusedError(errno.ECONNREFUSED, "connection refused"),
+            "tcp",
+            "tcp_connection_refused",
+            False,
+            id="tcp-refused",
+        ),
+        pytest.param(
+            ConnectionResetError(errno.ECONNRESET, "connection reset"),
+            "tcp",
+            "tcp_connection_reset",
+            True,
+            id="tcp-reset",
+        ),
+        pytest.param(
+            ssl.SSLError("TLS handshake failed"),
+            "tls",
+            "tls_error",
+            False,
+            id="tls-error",
+        ),
+        pytest.param(
+            TimeoutError("request timed out"),
+            "transport",
+            "transport_timeout",
+            True,
+            id="timeout",
+        ),
+    ],
+)
+def test_network_exception_diagnostics_classify_known_causes(
+    exception, stage, error_code, retryable
+):
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        _diagnose_network_exception,
+    )
+
+    diagnostic = _diagnose_network_exception(exception)
+
+    assert diagnostic["diagnostic_version"] == 1
+    assert diagnostic["connection_stage"] == stage
+    assert diagnostic["exception_type"] == type(exception).__name__
+    assert diagnostic["error_code"] == error_code
+    assert diagnostic["retryable"] is retryable
+
+
+def test_network_exception_diagnostics_follow_wrapped_cause_without_leaking_text():
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        _diagnose_network_exception,
+    )
+
+    root_cause = socket.gaierror(
+        socket.EAI_AGAIN,
+        "lookup failed for https://user:password@example.invalid/?token=secret",
+    )
+    wrapped = RuntimeError(
+        "transport failed for https://user:password@example.invalid/?token=secret"
+    )
+    wrapped.cause = root_cause
+
+    diagnostic = _diagnose_network_exception(wrapped)
+    serialized = json.dumps(diagnostic)
+
+    assert diagnostic["connection_stage"] == "dns"
+    assert diagnostic["exception_type"] == "gaierror"
+    assert "user" not in serialized
+    assert "password" not in serialized
+    assert "token" not in serialized
+    assert "secret" not in serialized
+    assert "example.invalid" not in serialized
+
+
+def test_generic_connection_error_stays_unknown():
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        _diagnose_network_exception,
+    )
+
+    diagnostic = _diagnose_network_exception(ConnectionError("connection failed"))
+
+    assert diagnostic["connection_stage"] == "unknown"
+    assert diagnostic["error_code"] == "connection_error"
+    assert diagnostic["retryable"] is False
+
+
+def test_http_status_diagnostic_is_not_misclassified_as_socket_failure():
+    from fashion_radar.providers.tiktok.dtk_embedded import _diagnose_http_status
+
+    restricted = _diagnose_http_status(403)
+    overloaded = _diagnose_http_status(503)
+    rate_limited = _diagnose_http_status(429)
+
+    assert restricted["connection_stage"] == "http"
+    assert restricted["exception_type"] is None
+    assert restricted["error_code"] == "http_403"
+    assert restricted["retryable"] is False
+    assert overloaded["retryable"] is True
+    assert rate_limited["retryable"] is False
+
+
+def test_collection_persists_only_sanitized_network_diagnostics(tmp_path):
+    db, seed_file = _setup(tmp_path)
+
+    result = collect_tiktok_embedded(
+        db, seed_file, client=FailingGuestClient()
+    )
+
+    assert result.status == "failed"
+    assert result.network_diagnostics == [
+        {
+            "diagnostic_version": 1,
+            "connection_stage": "dns",
+            "exception_type": "gaierror",
+            "error_code": "dns_temporary_failure",
+            "retryable": True,
+        }
+    ]
+    with connect(db) as conn:
+        source = conn.execute(
+            "SELECT metadata_json FROM source_runs WHERE run_id=?",
+            (result.run_id,),
+        ).fetchone()
+    metadata = json.loads(source["metadata_json"])
+    assert metadata["network_diagnostics"] == result.network_diagnostics
+
+
+def test_pinned_dtk_timeout_names_are_classified_without_importing_dtk():
+    from fashion_radar.providers.tiktok.dtk_embedded import (
+        _diagnose_network_exception,
+    )
+
+    class ConnectTimeout(Exception):
+        pass
+
+    class ReadTimeout(Exception):
+        pass
+
+    connect = _diagnose_network_exception(ConnectTimeout("connect phase timed out"))
+    read = _diagnose_network_exception(ReadTimeout("response read timed out"))
+
+    assert connect["connection_stage"] == "tcp"
+    assert connect["error_code"] == "connect_timeout"
+    assert read["connection_stage"] == "transport"
+    assert read["error_code"] == "read_timeout"

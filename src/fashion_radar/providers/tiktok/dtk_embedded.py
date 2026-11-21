@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import errno as errno_codes
 import json
+import socket
+import ssl
 import sys
 import uuid
 from collections.abc import Mapping
@@ -24,9 +27,159 @@ GUEST_ENDPOINTS = frozenset(
 class TikTokEmbeddedError(RuntimeError):
     """Safe, stable error emitted by the embedded provider."""
 
-    def __init__(self, message: str, error_code: str = "provider_error") -> None:
+    def __init__(
+        self,
+        message: str,
+        error_code: str = "provider_error",
+        *,
+        diagnostic: Mapping[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.error_code = error_code
+        self.diagnostic = dict(diagnostic) if diagnostic is not None else None
+
+
+_DIAGNOSTIC_VERSION = 1
+
+
+def _diagnostic(
+    connection_stage: str,
+    exception_type: str | None,
+    error_code: str,
+    retryable: bool,
+) -> dict[str, Any]:
+    """Build a small diagnostic record without exception text or request data."""
+    return {
+        "diagnostic_version": _DIAGNOSTIC_VERSION,
+        "connection_stage": connection_stage,
+        "exception_type": exception_type,
+        "error_code": error_code,
+        "retryable": retryable,
+    }
+
+
+def _safe_exception_type(exc: BaseException) -> str:
+    """Keep only a bounded Python type name; never serialize exception messages."""
+    raw_name = type(exc).__name__
+    safe_name = "".join(
+        char
+        for char in raw_name
+        if char.isascii() and (char.isalnum() or char in "._")
+    )
+    return safe_name[:80] or "UnknownException"
+
+
+def _exception_chain(exc: BaseException) -> list[BaseException]:
+    """Follow standard and DTK transport causes, with cycle and depth guards."""
+    pending = [exc]
+    visited: set[int] = set()
+    chain: list[BaseException] = []
+    while pending and len(chain) < 16:
+        current = pending.pop(0)
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        chain.append(current)
+        try:
+            transport_cause = getattr(current, "cause", None)
+        except Exception:  # noqa: BLE001 - tolerate custom cause properties that raise
+            transport_cause = None
+        for linked in (
+            transport_cause,
+            current.__cause__,
+            current.__context__,
+        ):
+            if isinstance(linked, BaseException) and id(linked) not in visited:
+                pending.append(linked)
+    return chain
+
+
+def _diagnose_network_exception(exc: BaseException) -> dict[str, Any]:
+    """Classify only explicit low-level evidence; ambiguous failures stay unknown."""
+    chain = _exception_chain(exc)
+    for current in reversed(chain):
+        exception_type = _safe_exception_type(current)
+        type_name = type(current).__name__
+        error_number = getattr(current, "errno", None)
+        winerror = getattr(current, "winerror", None)
+
+        if isinstance(current, (socket.gaierror, socket.herror)) or type_name in {
+            "DNSError",
+            "DNSLookupError",
+        } or winerror in {11001, 11002, 11003, 11004}:
+            temporary = (
+                error_number == getattr(socket, "EAI_AGAIN", object())
+                or winerror == 11002
+            )
+            return _diagnostic(
+                "dns",
+                exception_type,
+                "dns_temporary_failure" if temporary else "dns_resolution_failed",
+                temporary,
+            )
+
+        if isinstance(current, ssl.SSLError) or type_name in {"TlsError", "SSLError"}:
+            return _diagnostic("tls", exception_type, "tls_error", False)
+
+        if type_name == "ConnectTimeout":
+            return _diagnostic("tcp", exception_type, "connect_timeout", True)
+
+        if type_name == "ReadTimeout":
+            return _diagnostic("transport", exception_type, "read_timeout", True)
+
+        if type_name == "ProxyConnectionError":
+            return _diagnostic("tcp", exception_type, "proxy_connection_error", True)
+
+        if isinstance(current, ConnectionRefusedError) or winerror == 10061:
+            return _diagnostic("tcp", exception_type, "tcp_connection_refused", False)
+
+        if isinstance(current, ConnectionResetError) or winerror == 10054:
+            return _diagnostic("tcp", exception_type, "tcp_connection_reset", True)
+
+        if isinstance(current, ConnectionAbortedError) or winerror == 10053:
+            return _diagnostic("tcp", exception_type, "tcp_connection_aborted", True)
+
+        if isinstance(current, BrokenPipeError):
+            return _diagnostic("tcp", exception_type, "tcp_broken_pipe", True)
+
+        tcp_errno_codes = {
+            getattr(errno_codes, "ENETUNREACH", None): "tcp_network_unreachable",
+            getattr(errno_codes, "EHOSTUNREACH", None): "tcp_host_unreachable",
+            getattr(errno_codes, "ENETDOWN", None): "tcp_network_unreachable",
+            getattr(errno_codes, "EHOSTDOWN", None): "tcp_host_unreachable",
+        }
+        tcp_errno_codes.pop(None, None)
+        if error_number in tcp_errno_codes or winerror in {10051, 10065}:
+            code = tcp_errno_codes.get(error_number, "tcp_network_unreachable")
+            return _diagnostic("tcp", exception_type, code, True)
+
+        if error_number == getattr(errno_codes, "ETIMEDOUT", object()) or winerror == 10060:
+            return _diagnostic("transport", exception_type, "transport_timeout", True)
+
+        if isinstance(current, TimeoutError) or type_name in {"Timeout", "TimeoutError"}:
+            return _diagnostic("transport", exception_type, "transport_timeout", True)
+
+        if isinstance(current, ConnectionError):
+            return _diagnostic("unknown", exception_type, "connection_error", False)
+
+        if type_name in {
+            "BodyError",
+            "DecodingError",
+            "RedirectError",
+            "RequestError",
+            "UpgradeError",
+        }:
+            return _diagnostic("transport", exception_type, "transport_error", False)
+
+    leaf = chain[-1] if chain else exc
+    leaf_type = _safe_exception_type(leaf)
+    return _diagnostic("unknown", leaf_type, "transport_error", False)
+
+
+def _diagnose_http_status(status: int) -> dict[str, Any]:
+    """Describe an HTTP response without confusing it with a socket failure."""
+    retryable = status == 408 or 500 <= status < 600
+    return _diagnostic("http", None, "http_" + str(status), retryable)
 
 
 class RequestGuard(Protocol):
@@ -260,6 +413,7 @@ class DTKEmbeddedClient:
         self._requests += 1
         succeeded = False
         error_code = "request_failed"
+        phase = "request_preparation"
         try:
             language = {"US": "en-US", "CA": "en-CA", "GB": "en-GB"}[market_code]
             profile = replace(
@@ -278,11 +432,13 @@ class DTKEmbeddedClient:
                 headers=platform_request.get("headers"),
                 body=platform_request.get("body"),
             )
+            phase = "signing"
             signed = await self._signer.sign(
                 signing_request,
                 self._signing_fingerprint,
                 self._modules["SigningSession"](cookies={}),
             )
+            phase = "request_preparation"
             transport_request = self._modules["TransportRequestSpec"](
                 url=signed.signed_url(platform_request["url"]),
                 method=platform_request["method"],
@@ -294,9 +450,11 @@ class DTKEmbeddedClient:
                 body=platform_request.get("body"),
                 endpoint=endpoint,
             )
+            phase = "transport"
             response = await self._transport.request(
                 self._identity, transport_request, timeout=self._timeout
             )
+            phase = "response"
             if not 200 <= response.status < 300:
                 if response.status == 429:
                     error_code = "rate_limited"
@@ -311,6 +469,7 @@ class DTKEmbeddedClient:
                     + endpoint
                     + ".",
                     error_code,
+                    diagnostic=_diagnose_http_status(response.status),
                 )
             try:
                 payload = json.loads(response.text)
@@ -319,12 +478,14 @@ class DTKEmbeddedClient:
                 raise TikTokEmbeddedError(
                     "TikTok returned a non-JSON response for " + endpoint + ".",
                     error_code,
+                    diagnostic=_diagnostic("http", None, "invalid_json", False),
                 ) from None
             if not isinstance(payload, dict):
                 error_code = "invalid_response"
                 raise TikTokEmbeddedError(
                     "TikTok returned an unexpected response shape.",
                     error_code,
+                    diagnostic=_diagnostic("http", None, "invalid_response", False),
                 )
             risk = self._adapter.detect_risk_control(payload)
             if risk:
@@ -332,21 +493,39 @@ class DTKEmbeddedClient:
                 raise TikTokEmbeddedError(
                     "TikTok returned a risk-control response for " + endpoint + ".",
                     error_code,
+                    diagnostic=_diagnostic("http", None, "risk_control", False),
                 )
             succeeded = True
             error_code = ""
             return payload
         except TikTokEmbeddedError:
             raise
-        except Exception as exc:
-            error_code = type(exc).__name__.lower()
+        except Exception as exc:  # noqa: BLE001 - wrap arbitrary wreq transport failures safely
+            if phase == "transport":
+                diagnostic = _diagnose_network_exception(exc)
+            elif phase == "response":
+                diagnostic = _diagnostic(
+                    "http",
+                    _safe_exception_type(exc),
+                    "response_processing_error",
+                    False,
+                )
+            else:
+                diagnostic = _diagnostic(
+                    "not_started",
+                    _safe_exception_type(exc),
+                    phase + "_error",
+                    False,
+                )
+            error_code = str(diagnostic["error_code"])
             raise TikTokEmbeddedError(
                 "Embedded TikTok request failed for "
                 + endpoint
                 + ": "
-                + type(exc).__name__
+                + error_code
                 + ".",
                 error_code,
+                diagnostic=diagnostic,
             ) from None
         finally:
             if self._guard is not None and guard_token is not None:
