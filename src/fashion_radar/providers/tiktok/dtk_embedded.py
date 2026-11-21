@@ -8,7 +8,7 @@ import sys
 import uuid
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 EXPECTED_DTK_VERSION = "5.1.11"
@@ -82,7 +82,7 @@ def _exception_chain(exc: BaseException) -> list[BaseException]:
         chain.append(current)
         try:
             transport_cause = getattr(current, "cause", None)
-        except Exception:
+        except Exception:  # noqa: BLE001 - tolerate custom cause properties that raise
             transport_cause = None
         for linked in (
             transport_cause,
@@ -209,8 +209,11 @@ def _load_dtk_modules() -> dict[str, Any]:
         from dtk.signing.base import RequestSpec as SigningRequestSpec
         from dtk.signing.base import SigningSession, StaticFingerprint
         from dtk.signing.native.signer import NativeSigner
-        from dtk.transport.base import Fingerprint, RequestSpec as TransportRequestSpec
-        from dtk.transport.base import TransportIdentity
+        from dtk.transport.base import (
+            Fingerprint,
+            RequestSpec as TransportRequestSpec,
+            TransportIdentity,
+        )
         from dtk.transport.emulation import known_majors
         from dtk.transport.wreq_transport import WreqTransport
     except ImportError as exc:
@@ -264,7 +267,7 @@ def _content_record(content: Any) -> dict[str, Any]:
     created_at = _get(content, "created_at")
     if isinstance(created_at, datetime):
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
         published_at = created_at.astimezone(timezone.utc).isoformat()
     else:
         published_at = str(created_at) if created_at else None
@@ -500,7 +503,7 @@ class DTKEmbeddedClient:
             return payload
         except TikTokEmbeddedError:
             raise
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - wrap arbitrary wreq transport failures safely
             if phase == "transport":
                 diagnostic = _diagnose_network_exception(exc)
             elif phase == "response":
@@ -642,8 +645,8 @@ class DTKEmbeddedClient:
 
 __all__ = [
     "DTK_SOURCE_COMMIT",
-    "DTKEmbeddedClient",
     "EXPECTED_DTK_VERSION",
     "GUEST_ENDPOINTS",
+    "DTKEmbeddedClient",
     "TikTokEmbeddedError",
 ]
