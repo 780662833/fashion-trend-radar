@@ -8,19 +8,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from fashion_radar.db import connect, initialize  # noqa: E402
-from fashion_radar.importers import (  # noqa: E402
+from fashion_radar.db import connect, initialize
+from fashion_radar.importers import (
     import_assessments,
-    import_experiments,
     import_experiment_snapshots,
+    import_experiments,
     import_insights,
     import_metrics,
     import_products,
     import_search,
     import_signals,
 )
-from fashion_radar.reporting import export_experiment_report, export_report  # noqa: E402
-from fashion_radar.scoring import score_all  # noqa: E402
+from fashion_radar.reporting import export_experiment_report, export_report
+from fashion_radar.scoring import score_all
 
 
 def main() -> int:

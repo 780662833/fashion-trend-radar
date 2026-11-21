@@ -3,10 +3,9 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
-
 
 BLOCKED_SOCIAL_DOMAINS = {
     "tiktok.com", "instagram.com", "facebook.com", "youtube.com",
@@ -64,7 +63,7 @@ def run_crawl(seeds: list[dict[str, str]], output_path: str | Path) -> None:
         ) from exc
 
     domains = sorted({row["allowed_domain"].lower().lstrip(".") for row in seeds})
-    captured_at = datetime.now(timezone.utc).isoformat()
+    captured_at = datetime.now(UTC).isoformat()
 
     class PublicSeedSpider(scrapy.Spider):
         name = "fashion_radar_public_seed_pages"

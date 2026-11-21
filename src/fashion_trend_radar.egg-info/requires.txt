@@ -9,6 +9,17 @@ streamlit<2,>=1.37
 pytest<10,>=8
 ruff<1,>=0.6
 
+[research-crawl]
+scrapy<3,>=2.20
+
+[tiktok-embedded]
+
+[tiktok-embedded:python_version >= "3.12" and python_version < "3.14"]
+dtk @ https://github.com/Evil0ctal/Douyin_TikTok_Download_API/archive/3c045e11aecd58ab076562f1246931b9dd5d909b.tar.gz
+
+[trendspyg]
+trendspyg==1.9.0
+
 [warehouse]
 polars<2,>=1.0
 duckdb<2,>=1.0

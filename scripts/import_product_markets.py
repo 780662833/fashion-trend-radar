@@ -4,7 +4,7 @@ import argparse
 import csv
 import json
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fashion_radar.db import connect, initialize
@@ -42,10 +42,10 @@ def _parse(row: dict[str, str], line: int) -> dict:
         except ValueError:
             raise ValueError(f"row {line}: observed_at must be ISO 8601") from None
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        observed = parsed.astimezone(timezone.utc).isoformat()
+            parsed = parsed.replace(tzinfo=UTC)
+        observed = parsed.astimezone(UTC).isoformat()
     else:
-        observed = datetime.now(timezone.utc).isoformat()
+        observed = datetime.now(UTC).isoformat()
     return {
         "product_id": product_id,
         "market_code": market,

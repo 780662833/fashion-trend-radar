@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -51,7 +51,7 @@ class SignalInput(BaseModel):
     @classmethod
     def ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -73,7 +73,7 @@ class MetricSnapshotInput(BaseModel):
     @field_validator("snapshot_at")
     @classmethod
     def ensure_timezone(cls, value: datetime) -> datetime:
-        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
 class SearchSnapshotInput(BaseModel):
@@ -100,7 +100,7 @@ class SearchSnapshotInput(BaseModel):
     @classmethod
     def ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -126,7 +126,7 @@ class AudienceInsightInput(BaseModel):
     @classmethod
     def ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -145,7 +145,7 @@ class ManualAssessmentInput(BaseModel):
     @classmethod
     def ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -164,7 +164,7 @@ class ScoreResult(BaseModel):
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class ContentExperimentInput(BaseModel):
@@ -185,7 +185,7 @@ class ContentExperimentInput(BaseModel):
     @classmethod
     def ensure_timezone(cls, value: datetime | None) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 
@@ -205,4 +205,4 @@ class ExperimentSnapshotInput(BaseModel):
     @field_validator("snapshot_at")
     @classmethod
     def ensure_timezone(cls, value: datetime) -> datetime:
-        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value

@@ -9,8 +9,8 @@ from pathlib import Path
 from .db import connect, initialize
 from .importers import (
     import_assessments,
-    import_experiments,
     import_experiment_snapshots,
+    import_experiments,
     import_insights,
     import_metrics,
     import_products,

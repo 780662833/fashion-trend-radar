@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fashion_radar.db import connect, initialize
 from fashion_radar.source_store import ensure_source_tables, purge_expired_youtube_references
@@ -20,7 +20,7 @@ def main() -> int:
     args = parser.parse_args()
 
     initialize(args.db)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with connect(args.db) as conn:
         ensure_source_tables(conn)
         count = conn.execute(

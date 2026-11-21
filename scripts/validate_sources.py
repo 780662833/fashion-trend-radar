@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 
 from fashion_radar.collectors.youtube import load_query_plan, probe_youtube_api

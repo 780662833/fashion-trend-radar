@@ -8,7 +8,7 @@ import os
 import sqlite3
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import uuid4
@@ -16,8 +16,8 @@ from uuid import uuid4
 from ..db import connect, initialize
 from ..providers.tiktok.dtk_embedded import (
     DTK_SOURCE_COMMIT,
-    DTKEmbeddedClient,
     EXPECTED_DTK_VERSION,
+    DTKEmbeddedClient,
 )
 from ..source_store import (
     QuotaBudgetExceeded,
@@ -323,7 +323,7 @@ def collect_tiktok_embedded(
     errors: list[str] = []
     items_seen = 0
     items_saved = 0
-    observed_at = datetime.now(timezone.utc).isoformat()
+    observed_at = datetime.now(UTC).isoformat()
     requests_made = 0
     owned_client = client is None
 

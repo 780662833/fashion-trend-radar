@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-from pathlib import Path
 import subprocess
 import sys
+from datetime import UTC, date, datetime
+from pathlib import Path
 
 import pytest
 
 from fashion_radar.collectors.youtube import QuerySpec, collect_youtube, load_query_plan
 from fashion_radar.db import connect, initialize
+from fashion_radar.scoring import score_all
 from fashion_radar.source_store import (
     QuotaBudgetExceeded,
     ensure_source_tables,
     purge_expired_youtube_references,
     reserve_api_request,
 )
-from fashion_radar.scoring import score_all
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -152,9 +152,8 @@ def test_search_budget_stops_before_overrun(tmp_path):
         )
         for _ in range(2):
             reserve_api_request(conn, "run-1", "youtube", "search.list", "search_queries", 2)
-    with connect(db) as conn:
-        with pytest.raises(QuotaBudgetExceeded):
-            reserve_api_request(conn, "run-1", "youtube", "search.list", "search_queries", 2)
+    with connect(db) as conn, pytest.raises(QuotaBudgetExceeded):
+        reserve_api_request(conn, "run-1", "youtube", "search.list", "search_queries", 2)
 
 
 def test_google_trends_manual_rows_preserve_comparison_group(tmp_path):
@@ -232,7 +231,7 @@ def test_youtube_reference_retention_purges_expired_rows_only(tmp_path):
                '2026-12-15T00:00:00+00:00','Fresh title')"""
         )
         deleted = purge_expired_youtube_references(
-            conn, datetime(2026, 11, 16, tzinfo=timezone.utc)
+            conn, datetime(2026, 11, 16, tzinfo=UTC)
         )
         remaining = conn.execute("SELECT video_id FROM youtube_video_references").fetchall()
     assert deleted == 1

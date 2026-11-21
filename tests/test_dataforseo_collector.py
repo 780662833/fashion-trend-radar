@@ -7,7 +7,6 @@ from fashion_radar.collectors.dataforseo_trends import (
 )
 from fashion_radar.db import connect, initialize
 
-
 PRODUCT_ID = "PILOT-KOBE-9"
 
 

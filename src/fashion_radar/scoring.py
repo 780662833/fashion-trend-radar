@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
-from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from statistics import mean
 
 from .models import ScoreResult
@@ -173,8 +172,8 @@ def _score_one(conn: sqlite3.Connection, product_id: str, market: str, score_dat
             try:
                 published = datetime.fromisoformat(row["published_at"].replace("Z", "+00:00"))
                 if published.tzinfo is None:
-                    published = published.replace(tzinfo=timezone.utc)
-                age_days.append(max(0, (datetime.combine(score_date, datetime.min.time(), timezone.utc) - published).days))
+                    published = published.replace(tzinfo=UTC)
+                age_days.append(max(0, (datetime.combine(score_date, datetime.min.time(), UTC) - published).days))
             except ValueError:
                 continue
         if age_days:

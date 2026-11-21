@@ -6,7 +6,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 CANDIDATES = {
     "video_url": ("url", "video_url", "share_url", "post_url"),
     "hashtag": ("hashtag", "tag", "keyword", "topic"),

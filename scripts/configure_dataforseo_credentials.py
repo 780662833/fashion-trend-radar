@@ -3,7 +3,6 @@ from __future__ import annotations
 from getpass import getpass
 from pathlib import Path
 
-
 KEYS = ("DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD")
 
 

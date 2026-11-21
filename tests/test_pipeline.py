@@ -2,7 +2,16 @@ from datetime import date
 from pathlib import Path
 
 from fashion_radar.db import connect, initialize
-from fashion_radar.importers import import_metrics, import_products, import_search, import_signals, import_insights, import_assessments, import_experiments, import_experiment_snapshots
+from fashion_radar.importers import (
+    import_assessments,
+    import_experiment_snapshots,
+    import_experiments,
+    import_insights,
+    import_metrics,
+    import_products,
+    import_search,
+    import_signals,
+)
 from fashion_radar.reporting import export_experiment_report, export_report
 from fashion_radar.scoring import score_all
 
@@ -75,7 +84,6 @@ def test_product_alias_resolver_uses_confidence_gate(tmp_path):
 
 
 def test_real_evidence_can_reach_grade_b_without_synthetic_data(tmp_path):
-    from datetime import datetime, timezone
 
     db = tmp_path / "registry.sqlite"
     initialize(db)
@@ -99,8 +107,9 @@ def test_real_evidence_can_reach_grade_b_without_synthetic_data(tmp_path):
 
 
 def test_insight_sample_cannot_be_smaller_than_mentions(tmp_path):
-    from fashion_radar.models import AudienceInsightInput
     from pydantic import ValidationError
+
+    from fashion_radar.models import AudienceInsightInput
 
     try:
         AudienceInsightInput(

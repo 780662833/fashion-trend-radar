@@ -5,7 +5,7 @@ import sys
 import uuid
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 EXPECTED_DTK_VERSION = "5.1.11"
@@ -56,8 +56,8 @@ def _load_dtk_modules() -> dict[str, Any]:
         from dtk.signing.base import RequestSpec as SigningRequestSpec
         from dtk.signing.base import SigningSession, StaticFingerprint
         from dtk.signing.native.signer import NativeSigner
-        from dtk.transport.base import Fingerprint, RequestSpec as TransportRequestSpec
-        from dtk.transport.base import TransportIdentity
+        from dtk.transport.base import Fingerprint, TransportIdentity
+        from dtk.transport.base import RequestSpec as TransportRequestSpec
         from dtk.transport.emulation import known_majors
         from dtk.transport.wreq_transport import WreqTransport
     except ImportError as exc:
@@ -111,8 +111,8 @@ def _content_record(content: Any) -> dict[str, Any]:
     created_at = _get(content, "created_at")
     if isinstance(created_at, datetime):
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        published_at = created_at.astimezone(timezone.utc).isoformat()
+            created_at = created_at.replace(tzinfo=UTC)
+        published_at = created_at.astimezone(UTC).isoformat()
     else:
         published_at = str(created_at) if created_at else None
 
@@ -356,7 +356,7 @@ class DTKEmbeddedClient:
         endpoint = self._endpoints["content_detail"]
         payload = await self._request_json(endpoint, market_code, item_id=content_id)
         content = self._adapter.parse_content(
-            payload, fetched_at=datetime.now(timezone.utc)
+            payload, fetched_at=datetime.now(UTC)
         )
         return _content_record(content)
 
@@ -391,7 +391,7 @@ class DTKEmbeddedClient:
                 count=min(20, remaining),
             )
             page = self._adapter.parse_author_posts(
-                payload, fetched_at=datetime.now(timezone.utc)
+                payload, fetched_at=datetime.now(UTC)
             )
             items.extend(_content_record(item) for item in page.items)
             if len(items) >= max_items or not page.has_more or not page.cursor:
@@ -432,7 +432,7 @@ class DTKEmbeddedClient:
                 count=min(20, remaining),
             )
             page = self._adapter.parse_hashtag_posts(
-                payload, fetched_at=datetime.now(timezone.utc)
+                payload, fetched_at=datetime.now(UTC)
             )
             items.extend(_content_record(item) for item in page.items)
             if len(items) >= max_items or not page.has_more or not page.cursor:
@@ -463,8 +463,8 @@ class DTKEmbeddedClient:
 
 __all__ = [
     "DTK_SOURCE_COMMIT",
-    "DTKEmbeddedClient",
     "EXPECTED_DTK_VERSION",
     "GUEST_ENDPOINTS",
+    "DTKEmbeddedClient",
     "TikTokEmbeddedError",
 ]

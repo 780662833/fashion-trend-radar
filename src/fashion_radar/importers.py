@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import csv
 import sqlite3
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from types import NoneType
-from typing import Callable, TypeVar, get_args
+from typing import TypeVar, get_args
 
 from pydantic import ValidationError
 
@@ -80,7 +81,7 @@ def import_products(path: str | Path, db_path: str | Path) -> tuple[int, list[st
 
 def import_signals(path: str | Path, db_path: str | Path) -> tuple[int, list[str]]:
     def save(conn, item: SignalInput) -> None:
-        now = item.observed_at or datetime.now(timezone.utc)
+        now = item.observed_at or datetime.now(UTC)
         conn.execute(
             """INSERT INTO social_signals(signal_id,product_id,platform,market_code,external_content_id,
                content_url,published_at,observed_at,content_type,caption,hashtags,creator_key,source_method,
@@ -114,7 +115,7 @@ def import_metrics(path: str | Path, db_path: str | Path) -> tuple[int, list[str
 
 def import_search(path: str | Path, db_path: str | Path) -> tuple[int, list[str]]:
     def save(conn, item: SearchSnapshotInput) -> None:
-        captured = item.captured_at or datetime.now(timezone.utc)
+        captured = item.captured_at or datetime.now(UTC)
         conn.execute(
             """INSERT INTO search_snapshots(product_id,market_code,keyword,period_start,period_end,
                interest_index,source,captured_at,is_synthetic,comparison_group)
@@ -131,7 +132,7 @@ def import_search(path: str | Path, db_path: str | Path) -> tuple[int, list[str]
 
 def import_insights(path: str | Path, db_path: str | Path) -> tuple[int, list[str]]:
     def save(conn, item: AudienceInsightInput) -> None:
-        observed = item.observed_at or datetime.now(timezone.utc)
+        observed = item.observed_at or datetime.now(UTC)
         conn.execute(
             """INSERT INTO audience_insights(product_id,market_code,topic,intent_type,mention_count,
                sample_size,source_url,confidence,observed_at,is_synthetic) VALUES(?,?,?,?,?,?,?,?,?,?)
@@ -146,7 +147,7 @@ def import_insights(path: str | Path, db_path: str | Path) -> tuple[int, list[st
 
 def import_assessments(path: str | Path, db_path: str | Path) -> tuple[int, list[str]]:
     def save(conn, item: ManualAssessmentInput) -> None:
-        assessed = item.assessed_at or datetime.now(timezone.utc)
+        assessed = item.assessed_at or datetime.now(UTC)
         conn.execute(
             """INSERT INTO manual_assessments(product_id,market_code,visual_potential,angle_richness,
                production_ease,competition_saturation,notes,assessed_at,is_synthetic) VALUES(?,?,?,?,?,?,?,?,?)

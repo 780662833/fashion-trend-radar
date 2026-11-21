@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fashion_radar.collectors.youtube import collect_youtube
 from fashion_radar.source_store import load_local_env
@@ -22,7 +22,7 @@ def main() -> int:
         parser.error("--days-back must be between 1 and 365")
 
     published_after = (
-        datetime.now(timezone.utc) - timedelta(days=args.days_back)
+        datetime.now(UTC) - timedelta(days=args.days_back)
     ).isoformat().replace("+00:00", "Z")
     try:
         result = collect_youtube(

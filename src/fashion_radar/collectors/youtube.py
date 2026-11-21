@@ -7,7 +7,7 @@ import os
 import re
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 from urllib.error import HTTPError, URLError
@@ -17,8 +17,12 @@ from uuid import uuid4
 
 from ..db import connect, initialize
 from ..source_store import (
-    QuotaBudgetExceeded, ensure_source_tables, finish_api_request,
-    finish_source_run, reserve_api_request, start_source_run,
+    QuotaBudgetExceeded,
+    ensure_source_tables,
+    finish_api_request,
+    finish_source_run,
+    reserve_api_request,
+    start_source_run,
 )
 
 API_ROOT = "https://www.googleapis.com/youtube/v3"
@@ -174,7 +178,7 @@ def _stable_creator_key(channel_id: str | None) -> str | None:
 
 
 def _signal_id(market: str, product_id: str, video_id: str) -> str:
-    digest = hashlib.sha256(f"{market}|{product_id}|{video_id}".encode("utf-8")).hexdigest()[:28]
+    digest = hashlib.sha256(f"{market}|{product_id}|{video_id}".encode()).hexdigest()[:28]
     return f"YT-{digest}"
 
 
@@ -191,8 +195,8 @@ def _as_nonnegative_int(value) -> int | None:
 def _parse_published_at(value: str) -> str:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc).isoformat()
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).isoformat()
 
 
 def _persist_video(conn: sqlite3.Connection, spec: QuerySpec, video: dict,
@@ -207,7 +211,7 @@ def _persist_video(conn: sqlite3.Connection, spec: QuerySpec, video: dict,
         return False
     published_at = _parse_published_at(published)
     observed = datetime.fromisoformat(snapshot_at.replace("Z", "+00:00"))
-    expires_at = (observed + timedelta(days=30)).astimezone(timezone.utc).isoformat()
+    expires_at = (observed + timedelta(days=30)).astimezone(UTC).isoformat()
     title = str(snippet.get("title") or "")
     description = str(snippet.get("description") or "")
     reference_id = _signal_id(spec.market_code, spec.product_id, video_id)
@@ -249,7 +253,7 @@ def collect_youtube(db_path: str | Path, query_file: str | Path, published_after
     errors: list[str] = []
     items_seen = 0
     items_saved = 0
-    snapshot_at = datetime.now(timezone.utc).isoformat()
+    snapshot_at = datetime.now(UTC).isoformat()
 
     with connect(db_path) as conn:
         ensure_source_tables(conn)

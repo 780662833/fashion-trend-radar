@@ -4,7 +4,7 @@ import argparse
 import csv
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -40,9 +40,9 @@ def _parse(row: dict[str, str], line: int) -> dict:
         except ValueError:
             raise ValueError(f"row {line}: captured_at must be ISO 8601") from None
         if instant.tzinfo is None:
-            instant = instant.replace(tzinfo=timezone.utc)
+            instant = instant.replace(tzinfo=UTC)
     else:
-        instant = datetime.now(timezone.utc)
+        instant = datetime.now(UTC)
     primary_raw = (row.get("is_primary") or "false").strip().lower()
     if primary_raw not in {"true", "false", "1", "0", "yes", "no"}:
         raise ValueError(f"row {line}: is_primary must be a boolean")
@@ -53,7 +53,7 @@ def _parse(row: dict[str, str], line: int) -> dict:
         "product_id": product_id,
         "evidence_type": evidence_type,
         "source_url": source_url,
-        "captured_at": instant.astimezone(timezone.utc).isoformat(),
+        "captured_at": instant.astimezone(UTC).isoformat(),
         "is_primary": int(is_primary),
         "notes": (row.get("notes") or "").strip(),
     }

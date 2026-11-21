@@ -5,7 +5,7 @@ import csv
 import hashlib
 import json
 import math
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -82,7 +82,7 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
     if end < start:
         raise ValueError(f"row {line}: period_end is earlier than period_start")
     if captured.tzinfo is None:
-        captured = captured.replace(tzinfo=timezone.utc)
+        captured = captured.replace(tzinfo=UTC)
     if source in {"google_trends_ui", "dataforseo_google_trends"}:
         if metric_name != "interest_index" or metric_unit != "index_0_100":
             raise ValueError(f"row {line}: Google Trends must use interest_index/index_0_100")
@@ -104,7 +104,7 @@ def _parse_row(row: dict[str, str], line: int) -> dict:
         "comparison_group": comparison_group,
         "source_url": source_url,
         "supporting_content_url": supporting_url,
-        "captured_at": captured.astimezone(timezone.utc).isoformat(),
+        "captured_at": captured.astimezone(UTC).isoformat(),
         "collection_method": (
             "authorized_provider_import"
             if source == "dataforseo_google_trends" else "manual_capture"
